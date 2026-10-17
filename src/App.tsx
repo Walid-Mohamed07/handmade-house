@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { StoreProvider } from './context/StoreContext';
-import SplashScreen from './components/SplashScreen';
-import HomeHub from './pages/HomeHub';
-import CatalogPage from './pages/CatalogPage';
-import AdminDashboard from './pages/AdminDashboard';
+import { StoreProvider } from './context/StoreContext.tsx';
+import SplashScreen from './components/SplashScreen.tsx';
+import HomeHub from './pages/HomeHub.tsx';
+import CatalogPage from './pages/CatalogPage.tsx';
+import AdminDashboard from './pages/AdminDashboard.tsx';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState<boolean>(true);
 
   return (
     <StoreProvider>
