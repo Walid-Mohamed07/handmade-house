@@ -18,11 +18,10 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env.local without logging or exposing sensitive values
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const JWT_SECRET =
   process.env.JWT_SECRET || 'handmade-house-artisan-secret-key-2026';
@@ -41,16 +40,36 @@ export interface AuthRequest extends Request {
   user?: JwtUserPayload;
 }
 
+// Helper: Generate a 3-4 character uppercase Category Code from Category Name
+export function deriveCategoryCode(name: string): string {
+  const cleaned = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  if (cleaned.length >= 4) {
+    // Take first 4 letters or consonants
+    return cleaned.slice(0, 4);
+  }
+  if (cleaned.length === 3) return cleaned;
+  return (cleaned + 'HMX').slice(0, 3);
+}
+
+// Helper: Generate a short 4-5 character Item Code (e.g. "1042" or "482A")
+export function generateShortItemSuffix(): string {
+  const num = Math.floor(1000 + Math.random() * 9000); // 4 digits: 1000-9999
+  return String(num);
+}
+
 const DEFAULT_CATEGORIES = [
-  'Ceramics & Pottery',
-  'Macramé & Woven',
-  'Artisan Candles',
-  'Handcrafted Jewelry',
-  'Olive Woodwork',
+  { name: 'Ceramics & Pottery', code: 'CERM' },
+  { name: 'Macramé & Woven', code: 'MACR' },
+  { name: 'Artisan Candles', code: 'CNDL' },
+  { name: 'Handcrafted Jewelry', code: 'JWLR' },
+  { name: 'Olive Woodwork', code: 'WOOD' },
 ];
 
 const DEFAULT_PRODUCTS = [
   {
+    code: 'CERM-1014',
+    itemCode: '1014',
+    categoryCode: 'CERM',
     name: 'Speckled Stoneware Pour-Over Vase',
     category: 'Ceramics & Pottery',
     price: 48,
@@ -65,6 +84,9 @@ const DEFAULT_PRODUCTS = [
     whatsappClicks: 19,
   },
   {
+    code: 'MACR-2048',
+    itemCode: '2048',
+    categoryCode: 'MACR',
     name: 'Bohemian Knotted Cotton Wall Hanging',
     category: 'Macramé & Woven',
     price: 65,
@@ -79,6 +101,9 @@ const DEFAULT_PRODUCTS = [
     whatsappClicks: 16,
   },
   {
+    code: 'CNDL-3091',
+    itemCode: '3091',
+    categoryCode: 'CNDL',
     name: 'Amber Jar Cedar & Fig Soy Candle',
     category: 'Artisan Candles',
     price: 28,
@@ -93,6 +118,9 @@ const DEFAULT_PRODUCTS = [
     whatsappClicks: 27,
   },
   {
+    code: 'JWLR-4025',
+    itemCode: '4025',
+    categoryCode: 'JWLR',
     name: 'Hammered Brass Crescent Earrings',
     category: 'Handcrafted Jewelry',
     price: 36,
@@ -106,6 +134,9 @@ const DEFAULT_PRODUCTS = [
     whatsappClicks: 11,
   },
   {
+    code: 'WOOD-5072',
+    itemCode: '5072',
+    categoryCode: 'WOOD',
     name: 'Carved Olive Wood Charcuterie Board',
     category: 'Olive Woodwork',
     price: 58,
@@ -119,6 +150,9 @@ const DEFAULT_PRODUCTS = [
     whatsappClicks: 14,
   },
   {
+    code: 'CERM-1089',
+    itemCode: '1089',
+    categoryCode: 'CERM',
     name: 'Earth-Toned Ceramic Matcha Bowl Set',
     category: 'Ceramics & Pottery',
     price: 42,
@@ -133,7 +167,6 @@ const DEFAULT_PRODUCTS = [
   },
 ];
 
-// Format MongoDB document with `id` and strip `passwordHash`
 const formatDoc = (doc: any) => {
   if (!doc) return null;
   const obj = doc.toObject ? doc.toObject() : { ...doc };
@@ -141,8 +174,8 @@ const formatDoc = (doc: any) => {
   return { ...obj, id: String(obj._id) };
 };
 
-// Drop deprecated `adminusers` collection & ensure Superadmin Walid Mohamed + sample users exist in `users`
-async function ensureSeedDataAndDropLegacy() {
+// Backfill codes on any existing categories/products and seed initial data
+async function ensureSeedDataAndBackfillCodes() {
   try {
     if (mongoose.connection.db) {
       const collections = await mongoose.connection.db
@@ -154,7 +187,7 @@ async function ensureSeedDataAndDropLegacy() {
       }
     }
 
-    // Ensure Superadmin Walid Mohamed exists in `users` collection
+    // 1. Ensure Superadmin Walid Mohamed exists
     const defaultPassword = process.env.ADMIN_PASSWORD || 'HandmadeHouse#2026';
     const superAdminPasswordHash = await bcrypt.hash(defaultPassword, 10);
 
@@ -177,15 +210,12 @@ async function ensureSeedDataAndDropLegacy() {
         },
         { new: true, upsert: true }
       );
-      console.log(
-        `[Seed] Superadmin "Walid Mohamed" (${superAdmin?.email}) ready in "users" collection.`
-      );
     } else if (superAdmin.name !== 'Walid Mohamed') {
       superAdmin.name = 'Walid Mohamed';
       await superAdmin.save();
     }
 
-    // Seed sample users across roles if only 1 user exists
+    // 2. Seed sample users if only 1 user exists
     const totalUsers = await User.countDocuments();
     if (totalUsers <= 1) {
       const sampleHash = await bcrypt.hash('HandmadeHouse#2026', 10);
@@ -230,33 +260,79 @@ async function ensureSeedDataAndDropLegacy() {
           status: 'Active' as const,
           passwordHash: sampleHash,
         },
-        {
-          name: 'Mariam Adel',
-          email: 'mariam.customer@outlook.com',
-          phone: '+20 155 432 9876',
-          role: 'customer' as UserRole,
-          status: 'Inactive' as const,
-          passwordHash: sampleHash,
-        },
       ];
       for (const u of sampleUsers) {
         const exists = await User.findOne({ email: u.email });
-        if (!exists) {
-          await User.create(u);
+        if (!exists) await User.create(u);
+      }
+    }
+
+    // 3. Seed or backfill Categories with 3-4 char codes
+    const catCount = await Category.countDocuments();
+    if (catCount === 0) {
+      await Category.insertMany(DEFAULT_CATEGORIES);
+    } else {
+      const existingCats = await Category.find();
+      for (const cat of existingCats) {
+        if (!cat.code) {
+          const preset = DEFAULT_CATEGORIES.find(
+            (d) => d.name.toLowerCase() === cat.name.toLowerCase()
+          );
+          let candidate = preset ? preset.code : deriveCategoryCode(cat.name);
+          const duplicate = await Category.findOne({
+            code: candidate,
+            _id: { $ne: cat._id },
+          });
+          if (duplicate) {
+            candidate = (
+              candidate.slice(0, 3) + Math.floor(1 + Math.random() * 9)
+            ).toUpperCase();
+          }
+          cat.code = candidate;
+          await cat.save();
         }
       }
     }
 
-    const catCount = await Category.countDocuments();
-    if (catCount === 0) {
-      await Category.insertMany(DEFAULT_CATEGORIES.map((name) => ({ name })));
+    // Build category name -> code map
+    const allCats = await Category.find();
+    const catCodeMap: Record<string, string> = {};
+    for (const c of allCats) {
+      catCodeMap[c.name] = c.code || deriveCategoryCode(c.name);
     }
 
+    // 4. Seed or backfill Products with unique CategoryCode-ItemCode
     const prodCount = await Product.countDocuments();
     if (prodCount === 0) {
       await Product.insertMany(DEFAULT_PRODUCTS);
+    } else {
+      const existingProds = await Product.find();
+      for (let i = 0; i < existingProds.length; i++) {
+        const prod = existingProds[i];
+        if (!prod.code || !prod.code.includes('-')) {
+          const prefix = (
+            catCodeMap[prod.category] || deriveCategoryCode(prod.category)
+          )
+            .toUpperCase()
+            .slice(0, 4);
+          let suffix = String(1010 + i * 17).slice(0, 4);
+          let fullCode = `${prefix}-${suffix}`;
+          // Ensure uniqueness
+          while (
+            await Product.findOne({ code: fullCode, _id: { $ne: prod._id } })
+          ) {
+            suffix = generateShortItemSuffix();
+            fullCode = `${prefix}-${suffix}`;
+          }
+          prod.categoryCode = prefix;
+          prod.itemCode = suffix;
+          prod.code = fullCode;
+          await prod.save();
+        }
+      }
     }
 
+    // 5. Settings & Analytics
     const settingsDoc = await Settings.findOne({ key: 'global' });
     if (!settingsDoc) {
       await Settings.create({ key: 'global' });
@@ -277,14 +353,32 @@ async function ensureSeedDataAndDropLegacy() {
         recentEvents: [
           {
             type: 'item_contact',
-            label: 'WhatsApp inquiry on "Amber Jar Cedar & Fig Soy Candle"',
+            label:
+              'Visitor clicked "Contact for Info" (WhatsApp) for [CNDL-3091] "Amber Jar Cedar & Fig Soy Candle"',
             itemName: 'Amber Jar Cedar & Fig Soy Candle',
+            itemCode: 'CNDL-3091',
+            category: 'Artisan Candles',
             timestamp: new Date(Date.now() - 1000 * 60 * 18),
           },
           {
+            type: 'item_view',
+            label:
+              'Visitor viewed item details: [CERM-1014] "Speckled Stoneware Pour-Over Vase"',
+            itemName: 'Speckled Stoneware Pour-Over Vase',
+            itemCode: 'CERM-1014',
+            category: 'Ceramics & Pottery',
+            timestamp: new Date(Date.now() - 1000 * 60 * 32),
+          },
+          {
+            type: 'social_click',
+            label: 'Visitor clicked Instagram link from Main Menu',
+            platform: 'instagram',
+            timestamp: new Date(Date.now() - 1000 * 60 * 48),
+          },
+          {
             type: 'qr_scan',
-            label: 'Customer visited Main Menu (QR Scan Hub)',
-            timestamp: new Date(Date.now() - 1000 * 60 * 45),
+            label: 'Visitor opened Main Menu (QR Scan Hub)',
+            timestamp: new Date(Date.now() - 1000 * 60 * 65),
           },
         ],
       });
@@ -295,28 +389,41 @@ async function ensureSeedDataAndDropLegacy() {
 }
 
 let dbConnected = false;
-async function connectDB() {
+let connectionPromise: Promise<void> | null = null;
+
+export async function connectDB() {
+  if (dbConnected && mongoose.connection.readyState === 1) return;
+  if (connectionPromise) return connectionPromise;
+
   const uri = process.env.MONGODB_URI;
   const dbName = process.env.DB_NAME || 'handmade_house';
 
   if (!uri) {
-    console.warn('[MongoDB] MONGODB_URI is not defined in .env.local');
+    console.warn('[MongoDB] MONGODB_URI is not defined');
     return;
   }
 
-  try {
-    await mongoose.connect(uri, { dbName });
-    dbConnected = true;
-    console.log(`[MongoDB] Connected successfully to database "${dbName}"`);
-    await ensureSeedDataAndDropLegacy();
-  } catch (err: any) {
-    console.error('[MongoDB Connection Error]:', err.message);
-  }
+  connectionPromise = (async () => {
+    try {
+      await mongoose.connect(uri, { dbName });
+      dbConnected = true;
+      console.log(`[MongoDB] Connected successfully to database "${dbName}"`);
+      await ensureSeedDataAndBackfillCodes();
+    } catch (err: any) {
+      console.error('[MongoDB Connection Error]:', err.message);
+      connectionPromise = null;
+    }
+  })();
+
+  return connectionPromise;
 }
 
-connectDB();
+// Ensure DB connection before handling API requests (crucial for Vercel serverless)
+app.use(async (_req: Request, _res: Response, next: NextFunction) => {
+  await connectDB();
+  next();
+});
 
-// Middleware: Verify Staff User JWT (superadmin, admin, operator allowed into dashboard)
 function requireStaffAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -399,10 +506,11 @@ app.post('/api/analytics/track', async (req: Request, res: Response) => {
       }
       analytics.recentEvents.unshift({
         type: 'social_click',
+        platform,
         label:
           platform === 'whatsappDirect'
             ? 'Visitor clicked Direct WhatsApp Contact from Main Menu'
-            : `Visitor clicked ${platform.charAt(0).toUpperCase() + platform.slice(1)} link`,
+            : `Visitor clicked ${platform.charAt(0).toUpperCase() + platform.slice(1)} link from Main Menu`,
         timestamp: new Date(),
       });
     } else if (
@@ -418,8 +526,10 @@ app.post('/api/analytics/track', async (req: Request, res: Response) => {
       if (updatedProduct) {
         analytics.recentEvents.unshift({
           type: 'item_view',
-          label: `Visitor viewed item details: "${updatedProduct.name}"`,
+          label: `Visitor viewed item details: [${updatedProduct.code}] "${updatedProduct.name}"`,
           itemName: updatedProduct.name,
+          itemCode: updatedProduct.code,
+          category: updatedProduct.category,
           timestamp: new Date(),
         });
       }
@@ -436,15 +546,18 @@ app.post('/api/analytics/track', async (req: Request, res: Response) => {
       if (updatedProduct) {
         analytics.recentEvents.unshift({
           type: 'item_contact',
-          label: `Visitor clicked "Contact for Info" (WhatsApp) for "${updatedProduct.name}"`,
+          label: `Visitor clicked "Contact for Info" (WhatsApp) for [${updatedProduct.code}] "${updatedProduct.name}"`,
           itemName: updatedProduct.name,
+          itemCode: updatedProduct.code,
+          category: updatedProduct.category,
           timestamp: new Date(),
         });
       }
     }
 
-    if (analytics.recentEvents.length > 40) {
-      analytics.recentEvents = analytics.recentEvents.slice(0, 40);
+    // Retain up to 500 events for full Activity Log exploration, filtering & pagination
+    if (analytics.recentEvents.length > 500) {
+      analytics.recentEvents = analytics.recentEvents.slice(0, 500);
     }
 
     await analytics.save();
@@ -458,7 +571,7 @@ app.post('/api/analytics/track', async (req: Request, res: Response) => {
 });
 
 // ============================================================================
-// AUTHENTICATION ENDPOINTS (UNIFIED USERS COLLECTION)
+// AUTHENTICATION ENDPOINTS
 // ============================================================================
 
 app.post('/api/admin/login', async (req: Request, res: Response) => {
@@ -482,9 +595,10 @@ app.post('/api/admin/login', async (req: Request, res: Response) => {
     }
 
     if (user.role === 'customer') {
-      return res
-        .status(403)
-        .json({ error: 'Access denied: Customer accounts cannot sign in to the Admin Portal.' });
+      return res.status(403).json({
+        error:
+          'Access denied: Customer accounts cannot sign in to the Admin Portal.',
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
@@ -541,12 +655,8 @@ app.put(
         return res.status(400).json({ error: 'Current password is incorrect.' });
       }
 
-      if (name && name.trim()) {
-        user.name = name.trim();
-      }
-      if (email && email.trim()) {
-        user.email = email.trim().toLowerCase();
-      }
+      if (name && name.trim()) user.name = name.trim();
+      if (email && email.trim()) user.email = email.trim().toLowerCase();
       if (newPassword && newPassword.length >= 6) {
         user.passwordHash = await bcrypt.hash(newPassword, 10);
       }
@@ -623,7 +733,6 @@ app.put(
         return res.status(404).json({ error: 'User not found.' });
       }
 
-      // Prevent demoting the last superadmin
       if (targetUser.role === 'superadmin' && role && role !== 'superadmin') {
         const superAdminCount = await User.countDocuments({ role: 'superadmin' });
         if (superAdminCount <= 1) {
@@ -678,12 +787,52 @@ app.delete(
 );
 
 // ============================================================================
-// PROTECTED CATALOG & SETTINGS CRUD ENDPOINTS
+// PROTECTED PRODUCTS & CATEGORIES CRUD ENDPOINTS (WITH UNIQUE TWO-PART CODES)
 // ============================================================================
 
 app.post('/api/products', requireStaffAuth, async (req: Request, res: Response) => {
   try {
-    const created = await Product.create(req.body);
+    const { category, itemCode: rawItemCode, categoryCode: rawCatCode } = req.body;
+    const catDoc = await Category.findOne({ name: category });
+    const prefix = (
+      rawCatCode ||
+      catDoc?.code ||
+      deriveCategoryCode(category || 'ITEM')
+    )
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 4);
+
+    let suffix = (rawItemCode || generateShortItemSuffix())
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 5);
+
+    if (suffix.length < 4) {
+      suffix = (suffix + generateShortItemSuffix()).slice(0, 4);
+    }
+
+    let fullCode = `${prefix}-${suffix}`;
+    const existing = await Product.findOne({ code: fullCode });
+    if (existing) {
+      // If user supplied a duplicate or collision occurred, auto-generate unique suffix
+      if (rawItemCode) {
+        return res.status(400).json({
+          error: `Product code "${fullCode}" already exists. Please use a different item code.`,
+        });
+      }
+      while (await Product.findOne({ code: fullCode })) {
+        suffix = generateShortItemSuffix();
+        fullCode = `${prefix}-${suffix}`;
+      }
+    }
+
+    const created = await Product.create({
+      ...req.body,
+      categoryCode: prefix,
+      itemCode: suffix,
+      code: fullCode,
+    });
     res.status(201).json(formatDoc(created));
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -695,9 +844,54 @@ app.put(
   requireStaffAuth,
   async (req: Request, res: Response) => {
     try {
-      const updated = await Product.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
+      const { category, itemCode: rawItemCode, categoryCode: rawCatCode } = req.body;
+      const current = await Product.findById(req.params.id);
+      if (!current) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+
+      const targetCategory = category || current.category;
+      const catDoc = await Category.findOne({ name: targetCategory });
+      const prefix = (
+        rawCatCode ||
+        catDoc?.code ||
+        current.categoryCode ||
+        deriveCategoryCode(targetCategory)
+      )
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 4);
+
+      const suffix = (
+        rawItemCode ||
+        current.itemCode ||
+        generateShortItemSuffix()
+      )
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 5);
+
+      const fullCode = `${prefix}-${suffix}`;
+      const conflict = await Product.findOne({
+        code: fullCode,
+        _id: { $ne: current._id },
       });
+      if (conflict) {
+        return res.status(400).json({
+          error: `Product code "${fullCode}" is already used by "${conflict.name}".`,
+        });
+      }
+
+      const updated = await Product.findByIdAndUpdate(
+        req.params.id,
+        {
+          ...req.body,
+          categoryCode: prefix,
+          itemCode: suffix,
+          code: fullCode,
+        },
+        { new: true }
+      );
       res.json(formatDoc(updated));
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -723,11 +917,34 @@ app.post(
   requireStaffAuth,
   async (req: Request, res: Response) => {
     try {
-      const { name } = req.body;
-      const created = await Category.create({ name: name.trim() });
+      const { name, code: rawCode } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Category name is required.' });
+      }
+
+      let code = (rawCode ? String(rawCode) : deriveCategoryCode(name))
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 4);
+
+      if (code.length < 3) {
+        code = (code + 'HMX').slice(0, 3);
+      }
+
+      const codeConflict = await Category.findOne({ code });
+      if (codeConflict) {
+        return res.status(400).json({
+          error: `Category code "${code}" is already used by "${codeConflict.name}".`,
+        });
+      }
+
+      const created = await Category.create({
+        name: name.trim(),
+        code,
+      });
       res.status(201).json(formatDoc(created));
     } catch {
-      res.status(400).json({ error: 'Category already exists or is invalid.' });
+      res.status(400).json({ error: 'Category name or code already exists.' });
     }
   }
 );
@@ -792,6 +1009,13 @@ app.post(
   }
 );
 
-app.listen(PORT, () => {
-  console.log(`[Server] Handmade House TS API running on http://localhost:${PORT}`);
-});
+// Only start HTTP listener when running locally (not inside Vercel serverless environment)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(
+      `[Server] Handmade House TS API running on http://localhost:${PORT}`
+    );
+  });
+}
+
+export default app;

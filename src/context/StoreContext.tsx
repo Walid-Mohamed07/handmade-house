@@ -115,7 +115,7 @@ interface StoreContextValue {
   addProduct: (productData: Partial<ProductItem>) => Promise<ProductItem>;
   updateProduct: (id: string, updatedFields: Partial<ProductItem>) => Promise<ProductItem>;
   deleteProduct: (id: string) => Promise<void>;
-  addCategory: (name: string) => Promise<CategoryItem>;
+  addCategory: (name: string, code?: string) => Promise<CategoryItem>;
   deleteCategory: (id: string) => Promise<void>;
   fetchUsers: () => Promise<void>;
   addUser: (userData: Partial<UserItem> & { password?: string }) => Promise<UserItem>;
@@ -323,10 +323,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   // Category CRUD
-  const addCategory = async (name: string) => {
+  const addCategory = async (name: string, code?: string) => {
     const created = await authFetch('/api/categories', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, code }),
     });
     setCategories((prev) => [...prev, created]);
     return created;

@@ -17,8 +17,11 @@ export interface UserItem {
 export interface ProductItem {
   id: string;
   _id?: string;
+  code: string; // e.g. "CERM-1042" (CategoryCode-ItemCode)
+  itemCode?: string; // e.g. "1042"
   name: string;
   category: string;
+  categoryCode?: string; // e.g. "CERM"
   price: number;
   stockStatus: StockStatus;
   description: string;
@@ -33,6 +36,7 @@ export interface CategoryItem {
   id: string;
   _id?: string;
   name: string;
+  code: string; // 3-4 uppercase characters, e.g. "CERM"
   createdAt?: string;
 }
 
@@ -70,9 +74,18 @@ export interface SocialClicks {
 export interface AnalyticsEvent {
   _id?: string;
   id?: string;
-  type: 'qr_scan' | 'catalog_view' | 'social_click' | 'item_view' | 'item_contact' | string;
+  type:
+    | 'qr_scan'
+    | 'catalog_view'
+    | 'social_click'
+    | 'item_view'
+    | 'item_contact'
+    | string;
   label: string;
   itemName?: string;
+  itemCode?: string;
+  category?: string;
+  platform?: string;
   timestamp: string;
 }
 

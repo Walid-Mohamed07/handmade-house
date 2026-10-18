@@ -5,6 +5,9 @@ export type UserStatus = 'Active' | 'Inactive';
 export type StockStatus = 'In Stock' | 'Made to Order' | 'Sold Out';
 
 export interface IProduct extends Document {
+  code: string; // e.g., "CERM-1042" (unique combination)
+  itemCode: string; // e.g., "1042" (4-5 chars after '-')
+  categoryCode: string; // e.g., "CERM" (3-4 chars before '-')
   name: string;
   category: string;
   price: number;
@@ -19,6 +22,7 @@ export interface IProduct extends Document {
 
 export interface ICategory extends Document {
   name: string;
+  code: string; // 3-4 uppercase letters/digits, e.g., "CERM"
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +62,9 @@ export interface IAnalytics extends Document {
     type: string;
     label: string;
     itemName?: string;
+    itemCode?: string;
+    category?: string;
+    platform?: string;
     timestamp: Date;
   }>;
 }
@@ -75,6 +82,9 @@ export interface IUser extends Document {
 
 const productSchema = new Schema<IProduct>(
   {
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    itemCode: { type: String, required: true, uppercase: true, trim: true },
+    categoryCode: { type: String, required: true, uppercase: true, trim: true },
     name: { type: String, required: true, trim: true },
     category: { type: String, required: true, trim: true },
     price: { type: Number, required: true, default: 0 },
@@ -94,6 +104,7 @@ const productSchema = new Schema<IProduct>(
 const categorySchema = new Schema<ICategory>(
   {
     name: { type: String, required: true, unique: true, trim: true },
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true },
   },
   { timestamps: true }
 );
@@ -145,6 +156,9 @@ const analyticsSchema = new Schema<IAnalytics>(
         type: { type: String },
         label: { type: String },
         itemName: { type: String },
+        itemCode: { type: String },
+        category: { type: String },
+        platform: { type: String },
         timestamp: { type: Date, default: Date.now },
       },
     ],
@@ -152,7 +166,6 @@ const analyticsSchema = new Schema<IAnalytics>(
   { timestamps: true }
 );
 
-// Unified Users Collection supporting superadmin, admin, operator, and customer roles
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
