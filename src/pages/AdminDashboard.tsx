@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Package,
@@ -36,12 +36,12 @@ import {
   Calendar,
   Hash,
   RefreshCw,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   useStore,
   DEFAULT_THEME,
   FONT_FAMILY_OPTIONS,
-} from '../context/StoreContext.tsx';
+} from "../context/StoreContext.tsx";
 import {
   ProductItem,
   UserItem,
@@ -50,62 +50,62 @@ import {
   StockStatus,
   ThemeConfig,
   StoreSettings,
-} from '../types.ts';
+} from "../types.ts";
 
 const COLOR_PRESETS = [
   {
-    name: 'Brand Default (Alabaster & Espresso)',
+    name: "Brand Default (Alabaster & Espresso)",
     isDefault: true,
-    primaryColor: '#4B3629',
-    secondaryColor: '#EAE2DC',
-    surfaceColor: '#FAF8F6',
-    accentColor: '#246A46',
+    primaryColor: "#4B3629",
+    secondaryColor: "#EAE2DC",
+    surfaceColor: "#FAF8F6",
+    accentColor: "#246A46",
   },
   {
-    name: 'Terracotta Clay & Linen',
+    name: "Terracotta Clay & Linen",
     isDefault: false,
-    primaryColor: '#5C2C1E',
-    secondaryColor: '#F3E5DC',
-    surfaceColor: '#FCF8F5',
-    accentColor: '#2B6E48',
+    primaryColor: "#5C2C1E",
+    secondaryColor: "#F3E5DC",
+    surfaceColor: "#FCF8F5",
+    accentColor: "#2B6E48",
   },
   {
-    name: 'Olive Grove & Parchment',
+    name: "Olive Grove & Parchment",
     isDefault: false,
-    primaryColor: '#2F3B28',
-    secondaryColor: '#E8ECE3',
-    surfaceColor: '#F8FAF6',
-    accentColor: '#3B6E52',
+    primaryColor: "#2F3B28",
+    secondaryColor: "#E8ECE3",
+    surfaceColor: "#F8FAF6",
+    accentColor: "#3B6E52",
   },
   {
-    name: 'Midnight Charcoal & Warm Sand',
+    name: "Midnight Charcoal & Warm Sand",
     isDefault: false,
-    primaryColor: '#23201E',
-    secondaryColor: '#E5DFD7',
-    surfaceColor: '#F7F5F2',
-    accentColor: '#1E6B47',
+    primaryColor: "#23201E",
+    secondaryColor: "#E5DFD7",
+    surfaceColor: "#F7F5F2",
+    accentColor: "#1E6B47",
   },
 ];
 
 const getRoleBadgeClasses = (role: UserRole): string => {
   switch (role) {
-    case 'superadmin':
-      return 'bg-amber-500/20 text-amber-900 border border-amber-600/30';
-    case 'admin':
-      return 'bg-purple-500/15 text-purple-900 border border-purple-600/25';
-    case 'operator':
-      return 'bg-blue-500/15 text-blue-900 border border-blue-600/25';
-    case 'customer':
+    case "superadmin":
+      return "bg-amber-500/20 text-amber-900 border border-amber-600/30";
+    case "admin":
+      return "bg-purple-500/15 text-purple-900 border border-purple-600/25";
+    case "operator":
+      return "bg-blue-500/15 text-blue-900 border border-blue-600/25";
+    case "customer":
     default:
-      return 'bg-emerald-500/15 text-emerald-900 border border-emerald-600/25';
+      return "bg-emerald-500/15 text-emerald-900 border border-emerald-600/25";
   }
 };
 
 function deriveCategoryCodePreview(name: string): string {
-  const cleaned = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const cleaned = name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   if (cleaned.length >= 4) return cleaned.slice(0, 4);
   if (cleaned.length === 3) return cleaned;
-  return (cleaned + 'HMX').slice(0, 3);
+  return (cleaned + "HMX").slice(0, 3);
 }
 
 function generateShortItemSuffixPreview(): string {
@@ -138,38 +138,41 @@ export default function AdminDashboard() {
   } = useStore();
 
   // Login Form States
-  const [loginEmail, setLoginEmail] = useState<string>('');
-  const [loginPassword, setLoginPassword] = useState<string>('');
-  const [loginError, setLoginError] = useState<string>('');
+  const [loginEmail, setLoginEmail] = useState<string>("");
+  const [loginPassword, setLoginPassword] = useState<string>("");
+  const [loginError, setLoginError] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Dashboard Active Tab
-  const [activeTab, setActiveTab] = useState<string>('analytics');
-  const [toastMsg, setToastMsg] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>("analytics");
+  const [toastMsg, setToastMsg] = useState<string>("");
 
   // "Show More" Deep-Dive Analytics Modal State
   // Values: null | 'activity_log' | 'contacted_visited' | 'social_clicks' | 'category_demand' | 'item_analytics'
   const [detailModalType, setDetailModalType] = useState<string | null>(null);
 
   // Activity Log Modal Filters & Pagination
-  const [logSearch, setLogSearch] = useState<string>('');
-  const [logTypeFilter, setLogTypeFilter] = useState<string>('All');
-  const [logDateFrom, setLogDateFrom] = useState<string>('');
-  const [logDateTo, setLogDateTo] = useState<string>('');
+  const [logSearch, setLogSearch] = useState<string>("");
+  const [logTypeFilter, setLogTypeFilter] = useState<string>("All");
+  const [logDateFrom, setLogDateFrom] = useState<string>("");
+  const [logDateTo, setLogDateTo] = useState<string>("");
   const [logPage, setLogPage] = useState<number>(1);
   const [logPerPage, setLogPerPage] = useState<number>(8);
 
   // Item Analytics / Contacted & Visited Modal Filters & Pagination
-  const [itemAnalyticsSearch, setItemAnalyticsSearch] = useState<string>('');
-  const [itemAnalyticsCat, setItemAnalyticsCat] = useState<string>('All');
-  const [itemAnalyticsStock, setItemAnalyticsStock] = useState<string>('All');
-  const [itemAnalyticsSort, setItemAnalyticsSort] = useState<string>('contacts-desc');
+  const [itemAnalyticsSearch, setItemAnalyticsSearch] = useState<string>("");
+  const [itemAnalyticsCat, setItemAnalyticsCat] = useState<string>("All");
+  const [itemAnalyticsStock, setItemAnalyticsStock] = useState<string>("All");
+  const [itemAnalyticsSort, setItemAnalyticsSort] =
+    useState<string>("contacts-desc");
   const [itemAnalyticsPage, setItemAnalyticsPage] = useState<number>(1);
 
   // Product Modal States (with two-part Code: CategoryCode-ItemCode)
   const [isProductModalOpen, setIsProductModalOpen] = useState<boolean>(false);
-  const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null);
-  const [productFormError, setProductFormError] = useState<string>('');
+  const [editingProduct, setEditingProduct] = useState<ProductItem | null>(
+    null,
+  );
+  const [productFormError, setProductFormError] = useState<string>("");
   const [productForm, setProductForm] = useState<{
     name: string;
     category: string;
@@ -180,32 +183,34 @@ export default function AdminDashboard() {
     description: string;
     images: string[];
   }>({
-    name: '',
-    category: categories[0]?.name || 'Ceramics & Pottery',
-    categoryCode: categories[0]?.code || 'CERM',
+    name: "",
+    category: categories[0]?.name || "Ceramics & Pottery",
+    categoryCode: categories[0]?.code || "CERM",
     itemCode: generateShortItemSuffixPreview(),
-    price: '',
-    stockStatus: 'In Stock',
-    description: '',
-    images: [''],
+    price: "",
+    stockStatus: "In Stock",
+    description: "",
+    images: [""],
   });
 
   // Category Form State (Name + 3-4 char Code)
-  const [newCategoryName, setNewCategoryName] = useState<string>('');
-  const [newCategoryCode, setNewCategoryCode] = useState<string>('');
+  const [newCategoryName, setNewCategoryName] = useState<string>("");
+  const [newCategoryCode, setNewCategoryCode] = useState<string>("");
 
   // Users Management Filter, Search, Sort & Pagination States
-  const [userSearch, setUserSearch] = useState<string>('');
-  const [userRoleFilter, setUserRoleFilter] = useState<'All' | UserRole>('All');
-  const [userStatusFilter, setUserStatusFilter] = useState<'All' | UserStatus>('All');
-  const [userSortBy, setUserSortBy] = useState<string>('newest');
+  const [userSearch, setUserSearch] = useState<string>("");
+  const [userRoleFilter, setUserRoleFilter] = useState<"All" | UserRole>("All");
+  const [userStatusFilter, setUserStatusFilter] = useState<"All" | UserStatus>(
+    "All",
+  );
+  const [userSortBy, setUserSortBy] = useState<string>("newest");
   const [userCurrentPage, setUserCurrentPage] = useState<number>(1);
   const [usersPerPage, setUsersPerPage] = useState<number>(5);
 
   // User Add/Edit Modal States
   const [isUserModalOpen, setIsUserModalOpen] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
-  const [userFormError, setUserFormError] = useState<string>('');
+  const [userFormError, setUserFormError] = useState<string>("");
   const [userForm, setUserForm] = useState<{
     name: string;
     email: string;
@@ -214,12 +219,12 @@ export default function AdminDashboard() {
     status: UserStatus;
     password: string;
   }>({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'customer',
-    status: 'Active',
-    password: '',
+    name: "",
+    email: "",
+    phone: "",
+    role: "customer",
+    status: "Active",
+    password: "",
   });
 
   // Settings & Theme Form States
@@ -236,12 +241,12 @@ export default function AdminDashboard() {
     currentPassword: string;
     newPassword: string;
   }>({
-    name: adminUser?.name || '',
-    email: adminUser?.email || '',
-    currentPassword: '',
-    newPassword: '',
+    name: adminUser?.name || "",
+    email: adminUser?.email || "",
+    currentPassword: "",
+    newPassword: "",
   });
-  const [securityError, setSecurityError] = useState<string>('');
+  const [securityError, setSecurityError] = useState<string>("");
 
   useEffect(() => {
     setSettingsForm(settings);
@@ -252,8 +257,8 @@ export default function AdminDashboard() {
     if (adminUser) {
       setSecurityForm((prev) => ({
         ...prev,
-        name: adminUser.name || '',
-        email: adminUser.email || '',
+        name: adminUser.name || "",
+        email: adminUser.email || "",
       }));
     }
   }, [adminUser]);
@@ -268,11 +273,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setItemAnalyticsPage(1);
-  }, [itemAnalyticsSearch, itemAnalyticsCat, itemAnalyticsStock, itemAnalyticsSort]);
+  }, [
+    itemAnalyticsSearch,
+    itemAnalyticsCat,
+    itemAnalyticsStock,
+    itemAnalyticsSort,
+  ]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3400);
+    setTimeout(() => setToastMsg(""), 3400);
   };
 
   // Helper to get category code from category name
@@ -284,7 +294,9 @@ export default function AdminDashboard() {
   // Generate a guaranteed unique 4-digit itemCode for the given categoryCode
   const getUniqueItemSuffix = (catCode: string): string => {
     let suffix = generateShortItemSuffixPreview();
-    const existingCodes = new Set(products.map((p) => (p.code || '').toUpperCase()));
+    const existingCodes = new Set(
+      products.map((p) => (p.code || "").toUpperCase()),
+    );
     let attempts = 0;
     while (existingCodes.has(`${catCode}-${suffix}`) && attempts < 50) {
       suffix = generateShortItemSuffixPreview();
@@ -295,32 +307,38 @@ export default function AdminDashboard() {
 
   // Computed Analytics Metrics
   const stats = useMemo(() => {
-    const totalProductViews = products.reduce((acc, p) => acc + (p.views || 0), 0);
+    const totalProductViews = products.reduce(
+      (acc, p) => acc + (p.views || 0),
+      0,
+    );
     const totalItemWhatsappContacts = products.reduce(
       (acc, p) => acc + (p.whatsappClicks || 0),
-      0
+      0,
     );
     const totalVisits =
-      (analytics.totalQrLandingVisits || 0) + (analytics.totalCatalogVisits || 0);
+      (analytics.totalQrLandingVisits || 0) +
+      (analytics.totalCatalogVisits || 0);
 
     const conversionRate =
       totalProductViews > 0
         ? ((totalItemWhatsappContacts / totalProductViews) * 100).toFixed(1)
-        : '0.0';
+        : "0.0";
 
     const byContacted = [...products].sort(
-      (a, b) => (b.whatsappClicks || 0) - (a.whatsappClicks || 0)
+      (a, b) => (b.whatsappClicks || 0) - (a.whatsappClicks || 0),
     );
-    const byVisited = [...products].sort((a, b) => (b.views || 0) - (a.views || 0));
+    const byVisited = [...products].sort(
+      (a, b) => (b.views || 0) - (a.views || 0),
+    );
 
     const categoryStats = categories.map((cat) => {
       const catItems = products.filter((p) => p.category === cat.name);
       const views = catItems.reduce((sum, p) => sum + (p.views || 0), 0);
       const contacts = catItems.reduce(
         (sum, p) => sum + (p.whatsappClicks || 0),
-        0
+        0,
       );
-      const conv = views > 0 ? ((contacts / views) * 100).toFixed(1) : '0.0';
+      const conv = views > 0 ? ((contacts / views) * 100).toFixed(1) : "0.0";
       return {
         name: cat.name,
         code: cat.code || deriveCategoryCodePreview(cat.name),
@@ -355,15 +373,15 @@ export default function AdminDashboard() {
   const filteredActivityLogs = useMemo(() => {
     const events = analytics.recentEvents || [];
     return events.filter((ev) => {
-      const matchesType = logTypeFilter === 'All' || ev.type === logTypeFilter;
+      const matchesType = logTypeFilter === "All" || ev.type === logTypeFilter;
       const q = logSearch.trim().toLowerCase();
       const matchesSearch =
         !q ||
-        (ev.label || '').toLowerCase().includes(q) ||
-        (ev.itemName || '').toLowerCase().includes(q) ||
-        (ev.itemCode || '').toLowerCase().includes(q) ||
-        (ev.category || '').toLowerCase().includes(q) ||
-        (ev.type || '').toLowerCase().includes(q);
+        (ev.label || "").toLowerCase().includes(q) ||
+        (ev.itemName || "").toLowerCase().includes(q) ||
+        (ev.itemCode || "").toLowerCase().includes(q) ||
+        (ev.category || "").toLowerCase().includes(q) ||
+        (ev.type || "").toLowerCase().includes(q);
 
       let matchesDate = true;
       if (logDateFrom || logDateTo) {
@@ -379,11 +397,17 @@ export default function AdminDashboard() {
       }
       return matchesType && matchesSearch && matchesDate;
     });
-  }, [analytics.recentEvents, logTypeFilter, logSearch, logDateFrom, logDateTo]);
+  }, [
+    analytics.recentEvents,
+    logTypeFilter,
+    logSearch,
+    logDateFrom,
+    logDateTo,
+  ]);
 
   const logTotalPages = Math.max(
     1,
-    Math.ceil(filteredActivityLogs.length / logPerPage)
+    Math.ceil(filteredActivityLogs.length / logPerPage),
   );
   const paginatedActivityLogs = useMemo(() => {
     const start = (logPage - 1) * logPerPage;
@@ -395,24 +419,25 @@ export default function AdminDashboard() {
     return products
       .filter((item) => {
         const matchesCat =
-          itemAnalyticsCat === 'All' || item.category === itemAnalyticsCat;
+          itemAnalyticsCat === "All" || item.category === itemAnalyticsCat;
         const matchesStock =
-          itemAnalyticsStock === 'All' || item.stockStatus === itemAnalyticsStock;
+          itemAnalyticsStock === "All" ||
+          item.stockStatus === itemAnalyticsStock;
         const q = itemAnalyticsSearch.trim().toLowerCase();
         const matchesSearch =
           !q ||
           item.name.toLowerCase().includes(q) ||
-          (item.code || '').toLowerCase().includes(q) ||
+          (item.code || "").toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q);
         return matchesCat && matchesStock && matchesSearch;
       })
       .sort((a, b) => {
         const convA = a.views > 0 ? (a.whatsappClicks || 0) / a.views : 0;
         const convB = b.views > 0 ? (b.whatsappClicks || 0) / b.views : 0;
-        if (itemAnalyticsSort === 'views-desc')
+        if (itemAnalyticsSort === "views-desc")
           return (b.views || 0) - (a.views || 0);
-        if (itemAnalyticsSort === 'conv-desc') return convB - convA;
-        if (itemAnalyticsSort === 'price-desc')
+        if (itemAnalyticsSort === "conv-desc") return convB - convA;
+        if (itemAnalyticsSort === "price-desc")
           return Number(b.price) - Number(a.price);
         return (b.whatsappClicks || 0) - (a.whatsappClicks || 0);
       });
@@ -427,7 +452,7 @@ export default function AdminDashboard() {
   const itemAnalyticsPerPage = 6;
   const itemAnalyticsTotalPages = Math.max(
     1,
-    Math.ceil(filteredAnalyticsItems.length / itemAnalyticsPerPage)
+    Math.ceil(filteredAnalyticsItems.length / itemAnalyticsPerPage),
   );
   const paginatedAnalyticsItems = useMemo(() => {
     const start = (itemAnalyticsPage - 1) * itemAnalyticsPerPage;
@@ -438,22 +463,23 @@ export default function AdminDashboard() {
   const filteredUsers = useMemo(() => {
     return users
       .filter((u) => {
-        const matchesRole = userRoleFilter === 'All' || u.role === userRoleFilter;
+        const matchesRole =
+          userRoleFilter === "All" || u.role === userRoleFilter;
         const matchesStatus =
-          userStatusFilter === 'All' || u.status === userStatusFilter;
+          userStatusFilter === "All" || u.status === userStatusFilter;
         const q = userSearch.trim().toLowerCase();
         const matchesSearch =
           !q ||
           u.name.toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
-          (u.phone || '').toLowerCase().includes(q) ||
+          (u.phone || "").toLowerCase().includes(q) ||
           u.role.toLowerCase().includes(q);
         return matchesRole && matchesStatus && matchesSearch;
       })
       .sort((a, b) => {
-        if (userSortBy === 'name-asc') return a.name.localeCompare(b.name);
-        if (userSortBy === 'name-desc') return b.name.localeCompare(a.name);
-        if (userSortBy === 'role') return a.role.localeCompare(b.role);
+        if (userSortBy === "name-asc") return a.name.localeCompare(b.name);
+        if (userSortBy === "name-desc") return b.name.localeCompare(a.name);
+        if (userSortBy === "role") return a.role.localeCompare(b.role);
         return (
           new Date(b.createdAt || 0).getTime() -
           new Date(a.createdAt || 0).getTime()
@@ -461,7 +487,10 @@ export default function AdminDashboard() {
       });
   }, [users, userSearch, userRoleFilter, userStatusFilter, userSortBy]);
 
-  const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const userTotalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / usersPerPage),
+  );
   const paginatedUsers = useMemo(() => {
     const start = (userCurrentPage - 1) * usersPerPage;
     return filteredUsers.slice(start, start + usersPerPage);
@@ -470,50 +499,52 @@ export default function AdminDashboard() {
   const roleCounts = useMemo(() => {
     return {
       All: users.length,
-      superadmin: users.filter((u) => u.role === 'superadmin').length,
-      admin: users.filter((u) => u.role === 'admin').length,
-      operator: users.filter((u) => u.role === 'operator').length,
-      customer: users.filter((u) => u.role === 'customer').length,
+      superadmin: users.filter((u) => u.role === "superadmin").length,
+      admin: users.filter((u) => u.role === "admin").length,
+      operator: users.filter((u) => u.role === "operator").length,
+      customer: users.filter((u) => u.role === "customer").length,
     };
   }, [users]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError('');
+    setLoginError("");
     setIsLoggingIn(true);
     const res = await loginAdmin(loginEmail, loginPassword);
     setIsLoggingIn(false);
     if (!res.success) {
-      setLoginError(res.error || 'Login failed');
+      setLoginError(res.error || "Login failed");
     }
   };
 
   // Product Form Handlers (with automatic two-part code generation)
   const openAddProductModal = () => {
     setEditingProduct(null);
-    setProductFormError('');
-    const defaultCat = categories[0]?.name || 'Ceramics & Pottery';
+    setProductFormError("");
+    const defaultCat = categories[0]?.name || "Ceramics & Pottery";
     const catCode = getCategoryCodeByName(defaultCat);
     const uniqueSuffix = getUniqueItemSuffix(catCode);
     setProductForm({
-      name: '',
+      name: "",
       category: defaultCat,
       categoryCode: catCode,
       itemCode: uniqueSuffix,
-      price: '',
-      stockStatus: 'In Stock',
-      description: '',
-      images: [''],
+      price: "",
+      stockStatus: "In Stock",
+      description: "",
+      images: [""],
     });
     setIsProductModalOpen(true);
   };
 
   const openEditProductModal = (product: ProductItem) => {
     setEditingProduct(product);
-    setProductFormError('');
-    const parts = (product.code || '').split('-');
+    setProductFormError("");
+    const parts = (product.code || "").split("-");
     const catCode =
-      product.categoryCode || parts[0] || getCategoryCodeByName(product.category);
+      product.categoryCode ||
+      parts[0] ||
+      getCategoryCodeByName(product.category);
     const itmCode =
       product.itemCode || parts[1] || getUniqueItemSuffix(catCode);
 
@@ -523,9 +554,10 @@ export default function AdminDashboard() {
       categoryCode: catCode,
       itemCode: itmCode,
       price: product.price,
-      stockStatus: product.stockStatus || 'In Stock',
+      stockStatus: product.stockStatus || "In Stock",
       description: product.description,
-      images: product.images && product.images.length > 0 ? product.images : [''],
+      images:
+        product.images && product.images.length > 0 ? product.images : [""],
     });
     setIsProductModalOpen(true);
   };
@@ -544,9 +576,9 @@ export default function AdminDashboard() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = String(reader.result || '');
+      const dataUrl = String(reader.result || "");
       setProductForm((prev) => {
-        const cleaned = prev.images.filter((img) => img.trim() !== '');
+        const cleaned = prev.images.filter((img) => img.trim() !== "");
         return { ...prev, images: [...cleaned, dataUrl] };
       });
     };
@@ -555,14 +587,14 @@ export default function AdminDashboard() {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProductFormError('');
+    setProductFormError("");
     const cleanPrefix = productForm.categoryCode
       .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
+      .replace(/[^A-Z0-9]/g, "")
       .slice(0, 4);
     const cleanSuffix = productForm.itemCode
       .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
+      .replace(/[^A-Z0-9]/g, "")
       .slice(0, 5);
 
     if (cleanSuffix.length < 4 || cleanSuffix.length > 5) {
@@ -581,7 +613,7 @@ export default function AdminDashboard() {
       price: Number(productForm.price) || 0,
       stockStatus: productForm.stockStatus,
       description: productForm.description.trim(),
-      images: validImages.length > 0 ? validImages : ['/logo.jpg'],
+      images: validImages.length > 0 ? validImages : ["/logo.jpg"],
     };
 
     try {
@@ -594,42 +626,42 @@ export default function AdminDashboard() {
       }
       setIsProductModalOpen(false);
     } catch (err: any) {
-      setProductFormError(err.message || 'Error saving product');
+      setProductFormError(err.message || "Error saving product");
     }
   };
 
   // User Form Handlers
   const openAddUserModal = () => {
     setEditingUser(null);
-    setUserFormError('');
+    setUserFormError("");
     setUserForm({
-      name: '',
-      email: '',
-      phone: '',
-      role: 'customer',
-      status: 'Active',
-      password: '',
+      name: "",
+      email: "",
+      phone: "",
+      role: "customer",
+      status: "Active",
+      password: "",
     });
     setIsUserModalOpen(true);
   };
 
   const openEditUserModal = (user: UserItem) => {
     setEditingUser(user);
-    setUserFormError('');
+    setUserFormError("");
     setUserForm({
       name: user.name,
       email: user.email,
-      phone: user.phone || '',
+      phone: user.phone || "",
       role: user.role,
-      status: user.status || 'Active',
-      password: '',
+      status: user.status || "Active",
+      password: "",
     });
     setIsUserModalOpen(true);
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUserFormError('');
+    setUserFormError("");
     try {
       if (editingUser) {
         await updateUser(editingUser.id, {
@@ -656,7 +688,7 @@ export default function AdminDashboard() {
       }
       setIsUserModalOpen(false);
     } catch (err: any) {
-      setUserFormError(err.message || 'Failed to save user');
+      setUserFormError(err.message || "Failed to save user");
     }
   };
 
@@ -664,9 +696,9 @@ export default function AdminDashboard() {
     if (e) e.preventDefault();
     try {
       await updateSettings({ ...settings, theme: themeForm });
-      showToast('Theme colors & typography saved to MongoDB!');
+      showToast("Theme colors & typography saved to MongoDB!");
     } catch (err: any) {
-      showToast(err.message || 'Failed to save theme');
+      showToast(err.message || "Failed to save theme");
     }
   };
 
@@ -674,7 +706,7 @@ export default function AdminDashboard() {
     setThemeForm(DEFAULT_THEME);
     try {
       await updateSettings({ ...settings, theme: DEFAULT_THEME });
-      showToast('Restored default brand colors & fonts!');
+      showToast("Restored default brand colors & fonts!");
     } catch (err: any) {
       showToast(err.message);
     }
@@ -687,15 +719,16 @@ export default function AdminDashboard() {
     return (
       <div
         style={{
-          backgroundColor: 'var(--brand-secondary)',
-          color: 'var(--brand-primary)',
+          backgroundColor: "var(--brand-secondary)",
+          color: "var(--brand-primary)",
         }}
         className="min-h-screen flex items-center justify-center p-4 sm:p-6 animate-fade-up"
       >
         <div
           style={{
-            backgroundColor: 'var(--brand-surface)',
-            borderColor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)',
+            backgroundColor: "var(--brand-surface)",
+            borderColor:
+              "color-mix(in srgb, var(--brand-primary) 16%, transparent)",
           }}
           className="w-full max-w-md rounded-3xl border p-7 sm:p-9 shadow-2xl"
         >
@@ -704,7 +737,8 @@ export default function AdminDashboard() {
               src="/logo.jpg"
               alt="Handmade House"
               style={{
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 25%, transparent)',
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 25%, transparent)",
               }}
               className="w-20 h-20 rounded-full object-cover border mx-auto mb-3 shadow-sm"
             />
@@ -739,9 +773,9 @@ export default function AdminDashboard() {
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   style={{
-                    backgroundColor: 'var(--brand-secondary)',
+                    backgroundColor: "var(--brand-secondary)",
                     borderColor:
-                      'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                      "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                   }}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-current/20"
                 />
@@ -765,9 +799,9 @@ export default function AdminDashboard() {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   style={{
-                    backgroundColor: 'var(--brand-secondary)',
+                    backgroundColor: "var(--brand-secondary)",
                     borderColor:
-                      'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                      "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                   }}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-current/20"
                 />
@@ -778,13 +812,13 @@ export default function AdminDashboard() {
               type="submit"
               disabled={isLoggingIn}
               style={{
-                backgroundColor: 'var(--brand-primary)',
-                color: 'var(--brand-surface)',
+                backgroundColor: "var(--brand-primary)",
+                color: "var(--brand-surface)",
               }}
               className="w-full py-3.5 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50"
             >
               <Lock size={16} />
-              <span>{isLoggingIn ? 'Signing In...' : 'Sign In'}</span>
+              <span>{isLoggingIn ? "Signing In..." : "Sign In"}</span>
             </button>
           </form>
         </div>
@@ -798,16 +832,16 @@ export default function AdminDashboard() {
   return (
     <div
       style={{
-        backgroundColor: 'var(--brand-secondary)',
-        color: 'var(--brand-primary)',
+        backgroundColor: "var(--brand-secondary)",
+        color: "var(--brand-primary)",
       }}
       className="min-h-screen flex flex-col animate-fade-up"
     >
       {/* Top Bar */}
       <header
         style={{
-          backgroundColor: 'var(--brand-primary)',
-          color: 'var(--brand-surface)',
+          backgroundColor: "var(--brand-primary)",
+          color: "var(--brand-surface)",
         }}
         className="px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap shadow-md"
       >
@@ -825,17 +859,18 @@ export default function AdminDashboard() {
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                   dbConnected
-                    ? 'bg-emerald-500/20 text-emerald-200'
-                    : 'bg-amber-500/20 text-amber-200'
+                    ? "bg-emerald-500/20 text-emerald-200"
+                    : "bg-amber-500/20 text-amber-200"
                 }`}
               >
                 <Database size={11} />
-                {dbConnected ? 'MongoDB Connected' : 'Connecting DB'}
+                {dbConnected ? "MongoDB Connected" : "Connecting DB"}
               </span>
             </div>
             <div className="text-xs opacity-80 flex items-center gap-2 mt-0.5">
               <span>
-                Signed in as <strong>{adminUser.name}</strong> ({adminUser.email})
+                Signed in as <strong>{adminUser.name}</strong> (
+                {adminUser.email})
               </span>
               <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] uppercase font-bold tracking-wider">
                 {adminUser.role}
@@ -847,7 +882,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition-colors cursor-pointer"
           >
             <ExternalLink size={14} />
@@ -855,7 +890,7 @@ export default function AdminDashboard() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/catalog')}
+            onClick={() => navigate("/catalog")}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition-colors cursor-pointer"
           >
             <ExternalLink size={14} />
@@ -875,19 +910,32 @@ export default function AdminDashboard() {
       {/* Navigation Tabs */}
       <nav
         style={{
-          backgroundColor: 'var(--brand-surface)',
-          borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+          backgroundColor: "var(--brand-surface)",
+          borderColor:
+            "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
         }}
         className="px-4 sm:px-6 border-b flex gap-1 overflow-x-auto"
         aria-label="Admin Sections"
       >
         {[
-          { id: 'analytics', label: 'Overview & Item Analytics', icon: BarChart3 },
-          { id: 'products', label: `Products (${products.length})`, icon: Package },
-          { id: 'categories', label: `Categories (${categories.length})`, icon: Tags },
-          { id: 'users', label: `Users (${users.length})`, icon: Users },
-          { id: 'theme', label: 'Theme & Typography', icon: Palette },
-          { id: 'settings', label: 'Social Links & Security', icon: Settings },
+          {
+            id: "analytics",
+            label: "Overview & Item Analytics",
+            icon: BarChart3,
+          },
+          {
+            id: "products",
+            label: `Products (${products.length})`,
+            icon: Package,
+          },
+          {
+            id: "categories",
+            label: `Categories (${categories.length})`,
+            icon: Tags,
+          },
+          { id: "users", label: `Users (${users.length})`, icon: Users },
+          { id: "theme", label: "Theme & Typography", icon: Palette },
+          { id: "settings", label: "Social Links & Security", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -898,11 +946,11 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab(tab.id)}
               style={
                 isActive
-                  ? { borderBottomColor: 'var(--brand-primary)' }
-                  : { borderBottomColor: 'transparent' }
+                  ? { borderBottomColor: "var(--brand-primary)" }
+                  : { borderBottomColor: "transparent" }
               }
               className={`px-4 py-3.5 text-xs sm:text-sm font-semibold border-b-2 inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                isActive ? 'opacity-100' : 'opacity-65 hover:opacity-95'
+                isActive ? "opacity-100" : "opacity-65 hover:opacity-95"
               }`}
             >
               <Icon size={16} />
@@ -916,8 +964,8 @@ export default function AdminDashboard() {
       {toastMsg && (
         <div
           style={{
-            backgroundColor: 'var(--brand-primary)',
-            color: 'var(--brand-surface)',
+            backgroundColor: "var(--brand-primary)",
+            color: "var(--brand-surface)",
           }}
           className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm font-medium"
         >
@@ -931,15 +979,15 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 1: ANALYTICS & INSIGHTS (WITH "SHOW MORE" ON EVERY SECTION)
             ================================================================= */}
-        {activeTab === 'analytics' && (
+        {activeTab === "analytics" && (
           <div className="space-y-6">
             {/* Top 4 KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="rounded-2xl border p-5 shadow-xs flex items-start justify-between"
               >
@@ -951,12 +999,12 @@ export default function AdminDashboard() {
                     {stats.totalVisits}
                   </div>
                   <span className="text-xs opacity-75">
-                    {analytics.totalQrLandingVisits} QR Menu •{' '}
+                    {analytics.totalQrLandingVisits} QR Menu •{" "}
                     {analytics.totalCatalogVisits} Catalog
                   </span>
                 </div>
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
                 >
                   <Eye size={20} />
@@ -965,9 +1013,9 @@ export default function AdminDashboard() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="rounded-2xl border p-5 shadow-xs flex items-start justify-between"
               >
@@ -976,13 +1024,14 @@ export default function AdminDashboard() {
                     Item "Contact for Info" Hits
                   </span>
                   <div
-                    style={{ color: 'var(--brand-accent)' }}
+                    style={{ color: "var(--brand-accent)" }}
                     className="font-heading text-4xl font-bold my-1"
                   >
                     {stats.totalItemWhatsappContacts}
                   </div>
                   <span className="text-xs opacity-75">
-                    +{analytics.socialClicks?.whatsappDirect || 0} direct main menu hits
+                    +{analytics.socialClicks?.whatsappDirect || 0} direct main
+                    menu hits
                   </span>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-[#E3EFE8] text-[#246A46] flex items-center justify-center shrink-0">
@@ -992,9 +1041,9 @@ export default function AdminDashboard() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="rounded-2xl border p-5 shadow-xs flex items-start justify-between"
               >
@@ -1010,7 +1059,7 @@ export default function AdminDashboard() {
                   </span>
                 </div>
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
                 >
                   <TrendingUp size={20} />
@@ -1019,9 +1068,9 @@ export default function AdminDashboard() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="rounded-2xl border p-5 shadow-xs flex items-start justify-between"
               >
@@ -1038,13 +1087,13 @@ export default function AdminDashboard() {
                         {stats.mostContactedItem.name}
                       </>
                     ) : (
-                      'N/A'
+                      "N/A"
                     )}
                   </div>
                   <span className="text-xs opacity-75">
                     {stats.mostContactedItem
                       ? `${stats.mostContactedItem.whatsappClicks} WhatsApp clicks • ${stats.mostContactedItem.views} views`
-                      : 'No data yet'}
+                      : "No data yet"}
                   </span>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-[#F5EBE0] text-[#94622A] flex items-center justify-center shrink-0">
@@ -1058,9 +1107,9 @@ export default function AdminDashboard() {
               {/* Most Contacted & Visited Items */}
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="lg:col-span-7 rounded-2xl border p-5 sm:p-6 shadow-xs flex flex-col justify-between"
               >
@@ -1071,13 +1120,14 @@ export default function AdminDashboard() {
                         Most Contacted & Visited Items
                       </h2>
                       <p className="text-xs opacity-75">
-                        Visitor item views vs. "Contact for Info" WhatsApp clicks
+                        Visitor item views vs. "Contact for Info" WhatsApp
+                        clicks
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setDetailModalType('contacted_visited')}
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      onClick={() => setDetailModalType("contacted_visited")}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-85 cursor-pointer"
                     >
                       <Maximize2 size={13} />
@@ -1090,57 +1140,66 @@ export default function AdminDashboard() {
                       const maxViews = Math.max(
                         1,
                         ...products.map((p) =>
-                          Math.max(p.views || 0, p.whatsappClicks || 0)
-                        )
+                          Math.max(p.views || 0, p.whatsappClicks || 0),
+                        ),
                       );
                       const viewPct = Math.min(
                         100,
-                        Math.round(((item.views || 0) / maxViews) * 100)
+                        Math.round(((item.views || 0) / maxViews) * 100),
                       );
                       const contactPct = Math.min(
                         100,
-                        Math.round(((item.whatsappClicks || 0) / maxViews) * 100)
+                        Math.round(
+                          ((item.whatsappClicks || 0) / maxViews) * 100,
+                        ),
                       );
                       const conv =
                         item.views > 0
-                          ? Math.round(((item.whatsappClicks || 0) / item.views) * 100)
+                          ? Math.round(
+                              ((item.whatsappClicks || 0) / item.views) * 100,
+                            )
                           : 0;
 
                       return (
                         <div key={item.id}>
                           <div className="flex justify-between text-xs sm:text-sm font-semibold mb-1 gap-2">
                             <span className="truncate">
-                              #{idx + 1}{' '}
+                              #{idx + 1}{" "}
                               <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-black/5 mr-1">
                                 {item.code}
                               </span>
                               {item.name}
                             </span>
                             <span className="text-xs opacity-75 whitespace-nowrap">
-                              <strong>{item.whatsappClicks || 0}</strong> WhatsApp •{' '}
-                              <strong>{item.views || 0}</strong> views ({conv}%)
+                              <strong>{item.whatsappClicks || 0}</strong>{" "}
+                              WhatsApp • <strong>{item.views || 0}</strong>{" "}
+                              views ({conv}%)
                             </span>
                           </div>
                           <div
-                            style={{ backgroundColor: 'var(--brand-secondary)' }}
+                            style={{
+                              backgroundColor: "var(--brand-secondary)",
+                            }}
                             className="w-full h-2 rounded-full overflow-hidden mb-1"
                           >
                             <div
                               style={{
                                 width: `${viewPct}%`,
-                                backgroundColor: 'var(--brand-primary)',
+                                backgroundColor: "var(--brand-primary)",
                               }}
                               className="h-full rounded-full transition-all duration-500"
                             />
                           </div>
                           <div
-                            style={{ backgroundColor: 'var(--brand-secondary)' }}
+                            style={{
+                              backgroundColor: "var(--brand-secondary)",
+                            }}
                             className="w-full h-2 rounded-full overflow-hidden"
                           >
                             <div
                               style={{
                                 width: `${contactPct}%`,
-                                backgroundColor: 'var(--brand-accent)',
+                                backgroundColor: "var(--brand-accent)",
                               }}
                               className="h-full rounded-full transition-all duration-500"
                             />
@@ -1155,14 +1214,14 @@ export default function AdminDashboard() {
                   <div className="flex gap-4 opacity-75">
                     <span className="inline-flex items-center gap-1.5">
                       <span
-                        style={{ backgroundColor: 'var(--brand-primary)' }}
+                        style={{ backgroundColor: "var(--brand-primary)" }}
                         className="w-2.5 h-2.5 rounded-full"
                       />
                       Item Views
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <span
-                        style={{ backgroundColor: 'var(--brand-accent)' }}
+                        style={{ backgroundColor: "var(--brand-accent)" }}
                         className="w-2.5 h-2.5 rounded-full"
                       />
                       WhatsApp Contact Hits
@@ -1170,7 +1229,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setDetailModalType('contacted_visited')}
+                    onClick={() => setDetailModalType("contacted_visited")}
                     className="font-semibold underline cursor-pointer"
                   >
                     Full Ranking & Analysis →
@@ -1182,9 +1241,9 @@ export default function AdminDashboard() {
               <div className="lg:col-span-5 flex flex-col gap-6">
                 <div
                   style={{
-                    backgroundColor: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-surface)",
                     borderColor:
-                      'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                      "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                   }}
                   className="rounded-2xl border p-5 sm:p-6 shadow-xs"
                 >
@@ -1199,8 +1258,8 @@ export default function AdminDashboard() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setDetailModalType('social_clicks')}
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      onClick={() => setDetailModalType("social_clicks")}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-85 cursor-pointer"
                     >
                       <Maximize2 size={13} />
@@ -1210,7 +1269,7 @@ export default function AdminDashboard() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="p-3.5 rounded-xl"
                     >
                       <div className="text-xs opacity-75">Instagram</div>
@@ -1219,7 +1278,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="p-3.5 rounded-xl"
                     >
                       <div className="text-xs opacity-75">TikTok</div>
@@ -1228,7 +1287,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="p-3.5 rounded-xl"
                     >
                       <div className="text-xs opacity-75">Facebook</div>
@@ -1247,9 +1306,9 @@ export default function AdminDashboard() {
 
                 <div
                   style={{
-                    backgroundColor: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-surface)",
                     borderColor:
-                      'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                      "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                   }}
                   className="rounded-2xl border p-5 sm:p-6 shadow-xs"
                 >
@@ -1259,8 +1318,8 @@ export default function AdminDashboard() {
                     </h2>
                     <button
                       type="button"
-                      onClick={() => setDetailModalType('category_demand')}
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      onClick={() => setDetailModalType("category_demand")}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-85 cursor-pointer"
                     >
                       <Maximize2 size={13} />
@@ -1279,14 +1338,17 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody>
                         {stats.categoryStats.map((c) => (
-                          <tr key={c.name} className="border-b border-current/10">
+                          <tr
+                            key={c.name}
+                            className="border-b border-current/10"
+                          >
                             <td className="py-2.5 font-mono text-xs font-bold">
                               {c.code}
                             </td>
                             <td className="py-2.5 font-semibold">{c.name}</td>
                             <td className="py-2.5">{c.views}</td>
                             <td
-                              style={{ color: 'var(--brand-accent)' }}
+                              style={{ color: "var(--brand-accent)" }}
                               className="py-2.5 font-bold"
                             >
                               {c.contacts}
@@ -1304,9 +1366,9 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="lg:col-span-7 rounded-2xl border p-5 sm:p-6 shadow-xs"
               >
@@ -1316,13 +1378,14 @@ export default function AdminDashboard() {
                       Detailed Item Analytics Breakdown
                     </h2>
                     <p className="text-xs opacity-70">
-                      Performance per item code, views, WhatsApp clicks, and conversion rate
+                      Performance per item code, views, WhatsApp clicks, and
+                      conversion rate
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setDetailModalType('item_analytics')}
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    onClick={() => setDetailModalType("item_analytics")}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-85 cursor-pointer"
                   >
                     <Maximize2 size={13} />
@@ -1344,17 +1407,23 @@ export default function AdminDashboard() {
                       {stats.byContacted.slice(0, 6).map((item) => {
                         const conv =
                           item.views > 0
-                            ? ((item.whatsappClicks / item.views) * 100).toFixed(1)
-                            : '0.0';
+                            ? (
+                                (item.whatsappClicks / item.views) *
+                                100
+                              ).toFixed(1)
+                            : "0.0";
                         return (
-                          <tr key={item.id} className="border-b border-current/10">
+                          <tr
+                            key={item.id}
+                            className="border-b border-current/10"
+                          >
                             <td className="py-3 font-mono text-xs font-bold">
                               {item.code}
                             </td>
                             <td className="py-3 font-semibold">{item.name}</td>
                             <td className="py-3">{item.views || 0}</td>
                             <td
-                              style={{ color: 'var(--brand-accent)' }}
+                              style={{ color: "var(--brand-accent)" }}
                               className="py-3 font-bold"
                             >
                               {item.whatsappClicks || 0}
@@ -1370,9 +1439,9 @@ export default function AdminDashboard() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-surface)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                 }}
                 className="lg:col-span-5 rounded-2xl border p-5 sm:p-6 shadow-xs flex flex-col justify-between"
               >
@@ -1383,16 +1452,17 @@ export default function AdminDashboard() {
                         Visitor Activity Log
                       </h2>
                       <p className="text-xs opacity-70">
-                        {(analytics.recentEvents || []).length} recorded visitor events
+                        {(analytics.recentEvents || []).length} recorded visitor
+                        events
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setDetailModalType('activity_log')}
+                        onClick={() => setDetailModalType("activity_log")}
                         style={{
-                          backgroundColor: 'var(--brand-primary)',
-                          color: 'var(--brand-surface)',
+                          backgroundColor: "var(--brand-primary)",
+                          color: "var(--brand-surface)",
                         }}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
                       >
@@ -1403,9 +1473,9 @@ export default function AdminDashboard() {
                         type="button"
                         onClick={async () => {
                           await resetAnalyticsData();
-                          showToast('Reset visitor analytics counters');
+                          showToast("Reset visitor analytics counters");
                         }}
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
                         title="Reset Analytics"
                       >
@@ -1420,44 +1490,47 @@ export default function AdminDashboard() {
                         No recent visitor events recorded yet.
                       </p>
                     ) : (
-                      (analytics.recentEvents || []).slice(0, 6).map((ev, i) => (
-                        <div
-                          key={ev._id || i}
-                          style={{
-                            backgroundColor:
-                              ev.type === 'item_contact'
-                                ? '#E3EFE8'
-                                : 'var(--brand-secondary)',
-                          }}
-                          className="p-3 rounded-xl text-xs"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-black/10">
-                              {ev.type}
-                            </span>
-                            {ev.itemCode && (
-                              <span className="font-mono text-[11px] font-bold">
-                                #{ev.itemCode}
+                      (analytics.recentEvents || [])
+                        .slice(0, 6)
+                        .map((ev, i) => (
+                          <div
+                            key={ev._id || i}
+                            style={{
+                              backgroundColor:
+                                ev.type === "item_contact"
+                                  ? "#E3EFE8"
+                                  : "var(--brand-secondary)",
+                            }}
+                            className="p-3 rounded-xl text-xs"
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-black/10">
+                                {ev.type}
                               </span>
-                            )}
+                              {ev.itemCode && (
+                                <span className="font-mono text-[11px] font-bold">
+                                  #{ev.itemCode}
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-semibold mt-1">{ev.label}</div>
+                            <div className="opacity-65 text-[11px] mt-0.5">
+                              {new Date(ev.timestamp).toLocaleString()}
+                            </div>
                           </div>
-                          <div className="font-semibold mt-1">{ev.label}</div>
-                          <div className="opacity-65 text-[11px] mt-0.5">
-                            {new Date(ev.timestamp).toLocaleString()}
-                          </div>
-                        </div>
-                      ))
+                        ))
                     )}
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setDetailModalType('activity_log')}
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  onClick={() => setDetailModalType("activity_log")}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="mt-4 w-full py-2.5 rounded-xl text-xs font-bold text-center hover:opacity-85 cursor-pointer"
                 >
-                  Open Full Visitor Activity Log (Search, Date Filter & Pagination) →
+                  Open Full Visitor Activity Log (Search, Date Filter &
+                  Pagination) →
                 </button>
               </div>
             </div>
@@ -1467,11 +1540,12 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 2: PRODUCTS MANAGEMENT (WITH TWO-PART PRODUCT CODE)
             ================================================================= */}
-        {activeTab === 'products' && (
+        {activeTab === "products" && (
           <div
             style={{
-              backgroundColor: 'var(--brand-surface)',
-              borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+              backgroundColor: "var(--brand-surface)",
+              borderColor:
+                "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
             }}
             className="rounded-2xl border p-5 sm:p-6 shadow-xs"
           >
@@ -1481,15 +1555,16 @@ export default function AdminDashboard() {
                   Manage Catalog Items
                 </h2>
                 <p className="text-xs opacity-75">
-                  Every item has a unique two-part code (`CAT-ITEM`) automatically linked to its Category code
+                  Every item has a unique two-part code (`CAT-ITEM`)
+                  automatically linked to its Category code
                 </p>
               </div>
               <button
                 type="button"
                 onClick={openAddProductModal}
                 style={{
-                  backgroundColor: 'var(--brand-primary)',
-                  color: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-primary)",
+                  color: "var(--brand-surface)",
                 }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-xs cursor-pointer"
               >
@@ -1517,7 +1592,7 @@ export default function AdminDashboard() {
                     <tr key={item.id} className="border-b border-current/10">
                       <td className="py-3">
                         <img
-                          src={item.images?.[0] || '/logo.jpg'}
+                          src={item.images?.[0] || "/logo.jpg"}
                           alt={item.name}
                           className="w-12 h-12 rounded-xl object-cover border border-current/15"
                         />
@@ -1525,9 +1600,9 @@ export default function AdminDashboard() {
                       <td className="py-3">
                         <span
                           style={{
-                            backgroundColor: 'var(--brand-secondary)',
+                            backgroundColor: "var(--brand-secondary)",
                             borderColor:
-                              'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                              "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                           }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-mono text-xs font-bold tracking-wider"
                         >
@@ -1543,8 +1618,8 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-3">{item.category}</td>
                       <td className="py-3 font-bold">
-                        {settings.currencySymbol}
                         {item.price}
+                        {settings.currencySymbol}
                       </td>
                       <td className="py-3">
                         <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-black/5">
@@ -1552,8 +1627,8 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="py-3">
-                        {item.views || 0} views •{' '}
-                        <strong style={{ color: 'var(--brand-accent)' }}>
+                        {item.views || 0} views •{" "}
+                        <strong style={{ color: "var(--brand-accent)" }}>
                           {item.whatsappClicks || 0} WhatsApp
                         </strong>
                       </td>
@@ -1562,7 +1637,9 @@ export default function AdminDashboard() {
                           <button
                             type="button"
                             onClick={() => openEditProductModal(item)}
-                            style={{ backgroundColor: 'var(--brand-secondary)' }}
+                            style={{
+                              backgroundColor: "var(--brand-secondary)",
+                            }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                           >
                             <Edit3 size={13} />
@@ -1591,12 +1668,13 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 3: CATEGORIES MANAGEMENT (WITH 3-4 CHAR CATEGORY CODE)
             ================================================================= */}
-        {activeTab === 'categories' && (
+        {activeTab === "categories" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="lg:col-span-7 rounded-2xl border p-5 sm:p-6 shadow-xs"
             >
@@ -1616,16 +1694,16 @@ export default function AdminDashboard() {
                   <tbody>
                     {categories.map((cat) => {
                       const count = products.filter(
-                        (p) => p.category === cat.name
+                        (p) => p.category === cat.name,
                       ).length;
                       return (
                         <tr key={cat.id} className="border-b border-current/10">
                           <td className="py-3">
                             <span
                               style={{
-                                backgroundColor: 'var(--brand-secondary)',
+                                backgroundColor: "var(--brand-secondary)",
                                 borderColor:
-                                  'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                                  "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                               }}
                               className="px-2.5 py-1 rounded-lg border font-mono text-xs font-bold tracking-wider"
                             >
@@ -1657,8 +1735,9 @@ export default function AdminDashboard() {
 
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="lg:col-span-5 rounded-2xl border p-5 sm:p-6 shadow-xs h-fit"
             >
@@ -1674,10 +1753,10 @@ export default function AdminDashboard() {
                       deriveCategoryCodePreview(newCategoryName);
                     await addCategory(newCategoryName, finalCode);
                     showToast(
-                      `Added category "${newCategoryName}" [${finalCode.toUpperCase()}]`
+                      `Added category "${newCategoryName}" [${finalCode.toUpperCase()}]`,
                     );
-                    setNewCategoryName('');
-                    setNewCategoryCode('');
+                    setNewCategoryName("");
+                    setNewCategoryCode("");
                   } catch (err: any) {
                     showToast(err.message);
                   }
@@ -1699,9 +1778,9 @@ export default function AdminDashboard() {
                       setNewCategoryCode(deriveCategoryCodePreview(val));
                     }}
                     style={{
-                      backgroundColor: 'var(--brand-secondary)',
+                      backgroundColor: "var(--brand-secondary)",
                       borderColor:
-                        'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                        "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
                   />
@@ -1712,7 +1791,9 @@ export default function AdminDashboard() {
                     <label className="text-xs font-semibold uppercase tracking-wider">
                       Category Code (3 to 4 chars before "-")
                     </label>
-                    <span className="text-[11px] opacity-70">Auto-generated</span>
+                    <span className="text-[11px] opacity-70">
+                      Auto-generated
+                    </span>
                   </div>
                   <input
                     type="text"
@@ -1725,14 +1806,14 @@ export default function AdminDashboard() {
                       setNewCategoryCode(
                         e.target.value
                           .toUpperCase()
-                          .replace(/[^A-Z0-9]/g, '')
-                          .slice(0, 4)
+                          .replace(/[^A-Z0-9]/g, "")
+                          .slice(0, 4),
                       )
                     }
                     style={{
-                      backgroundColor: 'var(--brand-secondary)',
+                      backgroundColor: "var(--brand-secondary)",
                       borderColor:
-                        'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                        "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono font-bold uppercase tracking-wider outline-none"
                   />
@@ -1741,8 +1822,8 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
                 >
@@ -1757,23 +1838,35 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 4: USERS COLLECTION MANAGEMENT
             ================================================================= */}
-        {activeTab === 'users' && (
+        {activeTab === "users" && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               {(
                 [
-                  { role: 'superadmin', title: 'Superadmin', desc: 'Full System Owner' },
-                  { role: 'admin', title: 'Admins', desc: 'Store Managers' },
-                  { role: 'operator', title: 'Operators', desc: 'Catalog & Orders' },
-                  { role: 'customer', title: 'Customers', desc: 'Registered Buyers' },
+                  {
+                    role: "superadmin",
+                    title: "Superadmin",
+                    desc: "Full System Owner",
+                  },
+                  { role: "admin", title: "Admins", desc: "Store Managers" },
+                  {
+                    role: "operator",
+                    title: "Operators",
+                    desc: "Catalog & Orders",
+                  },
+                  {
+                    role: "customer",
+                    title: "Customers",
+                    desc: "Registered Buyers",
+                  },
                 ] as const
               ).map((r) => (
                 <div
                   key={r.role}
                   style={{
-                    backgroundColor: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-surface)",
                     borderColor:
-                      'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                      "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
                   }}
                   className="rounded-2xl border p-4 shadow-xs flex items-center justify-between"
                 >
@@ -1787,7 +1880,7 @@ export default function AdminDashboard() {
                     <span className="text-[11px] opacity-70">{r.desc}</span>
                   </div>
                   <div
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center"
                   >
                     <Shield size={18} />
@@ -1798,8 +1891,9 @@ export default function AdminDashboard() {
 
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="rounded-2xl border p-5 sm:p-6 shadow-xs"
             >
@@ -1809,15 +1903,16 @@ export default function AdminDashboard() {
                     Unified Users Directory (`users` Collection)
                   </h2>
                   <p className="text-xs opacity-75">
-                    Manage all accounts across Superadmin, Admin, Operator, and Customer roles
+                    Manage all accounts across Superadmin, Admin, Operator, and
+                    Customer roles
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={openAddUserModal}
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-xs cursor-pointer"
                 >
@@ -1839,16 +1934,16 @@ export default function AdminDashboard() {
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       style={{
-                        backgroundColor: 'var(--brand-secondary)',
+                        backgroundColor: "var(--brand-secondary)",
                         borderColor:
-                          'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                          "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                       }}
                       className="w-full pl-9 pr-8 py-2.5 rounded-xl border text-xs sm:text-sm outline-none"
                     />
                     {userSearch && (
                       <button
                         type="button"
-                        onClick={() => setUserSearch('')}
+                        onClick={() => setUserSearch("")}
                         className="absolute right-2.5 opacity-60 hover:opacity-100 cursor-pointer"
                       >
                         <X size={15} />
@@ -1860,12 +1955,14 @@ export default function AdminDashboard() {
                     <select
                       value={userStatusFilter}
                       onChange={(e) =>
-                        setUserStatusFilter(e.target.value as 'All' | UserStatus)
+                        setUserStatusFilter(
+                          e.target.value as "All" | UserStatus,
+                        )
                       }
                       style={{
-                        backgroundColor: 'var(--brand-secondary)',
+                        backgroundColor: "var(--brand-secondary)",
                         borderColor:
-                          'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                          "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                       }}
                       className="w-full px-3 py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer"
                     >
@@ -1880,9 +1977,9 @@ export default function AdminDashboard() {
                       value={userSortBy}
                       onChange={(e) => setUserSortBy(e.target.value)}
                       style={{
-                        backgroundColor: 'var(--brand-secondary)',
+                        backgroundColor: "var(--brand-secondary)",
                         borderColor:
-                          'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                          "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                       }}
                       className="w-full px-3 py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer"
                     >
@@ -1896,11 +1993,13 @@ export default function AdminDashboard() {
                   <div className="md:col-span-2">
                     <select
                       value={usersPerPage}
-                      onChange={(e) => setUsersPerPage(Number(e.target.value) || 5)}
+                      onChange={(e) =>
+                        setUsersPerPage(Number(e.target.value) || 5)
+                      }
                       style={{
-                        backgroundColor: 'var(--brand-secondary)',
+                        backgroundColor: "var(--brand-secondary)",
                         borderColor:
-                          'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                          "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                       }}
                       className="w-full px-3 py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer"
                     >
@@ -1912,33 +2011,39 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center gap-2 overflow-x-auto pt-1">
-                  {(['All', 'superadmin', 'admin', 'operator', 'customer'] as const).map(
-                    (roleOption) => {
-                      const active = userRoleFilter === roleOption;
-                      return (
-                        <button
-                          key={roleOption}
-                          type="button"
-                          onClick={() => setUserRoleFilter(roleOption)}
-                          style={
-                            active
-                              ? {
-                                  backgroundColor: 'var(--brand-primary)',
-                                  color: 'var(--brand-surface)',
-                                }
-                              : {
-                                  backgroundColor: 'var(--brand-secondary)',
-                                  color: 'var(--brand-primary)',
-                                }
-                          }
-                          className="px-3.5 py-1.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap transition-all cursor-pointer"
-                        >
-                          {roleOption === 'All' ? 'All Roles' : roleOption} (
-                          {roleCounts[roleOption]})
-                        </button>
-                      );
-                    }
-                  )}
+                  {(
+                    [
+                      "All",
+                      "superadmin",
+                      "admin",
+                      "operator",
+                      "customer",
+                    ] as const
+                  ).map((roleOption) => {
+                    const active = userRoleFilter === roleOption;
+                    return (
+                      <button
+                        key={roleOption}
+                        type="button"
+                        onClick={() => setUserRoleFilter(roleOption)}
+                        style={
+                          active
+                            ? {
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
+                              }
+                            : {
+                                backgroundColor: "var(--brand-secondary)",
+                                color: "var(--brand-primary)",
+                              }
+                        }
+                        className="px-3.5 py-1.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap transition-all cursor-pointer"
+                      >
+                        {roleOption === "All" ? "All Roles" : roleOption} (
+                        {roleCounts[roleOption]})
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1968,8 +2073,8 @@ export default function AdminDashboard() {
                           <td className="py-3.5 font-semibold flex items-center gap-2">
                             <div
                               style={{
-                                backgroundColor: 'var(--brand-primary)',
-                                color: 'var(--brand-surface)',
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
                               }}
                               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                             >
@@ -1977,7 +2082,7 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <div>{u.name}</div>
-                              {u.role === 'superadmin' && (
+                              {u.role === "superadmin" && (
                                 <span className="text-[10px] font-bold text-amber-800">
                                   ★ Primary Superadmin
                                 </span>
@@ -1985,11 +2090,13 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td className="py-3.5">{u.email}</td>
-                          <td className="py-3.5 opacity-80">{u.phone || '—'}</td>
+                          <td className="py-3.5 opacity-80">
+                            {u.phone || "—"}
+                          </td>
                           <td className="py-3.5">
                             <span
                               className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getRoleBadgeClasses(
-                                u.role
+                                u.role,
                               )}`}
                             >
                               {u.role}
@@ -1998,9 +2105,9 @@ export default function AdminDashboard() {
                           <td className="py-3.5">
                             <span
                               className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                u.status === 'Active'
-                                  ? 'bg-[#E3EFE8] text-[#286646]'
-                                  : 'bg-[#F2E4E4] text-[#9E3B3B]'
+                                u.status === "Active"
+                                  ? "bg-[#E3EFE8] text-[#286646]"
+                                  : "bg-[#F2E4E4] text-[#9E3B3B]"
                               }`}
                             >
                               {u.status}
@@ -2009,14 +2116,16 @@ export default function AdminDashboard() {
                           <td className="py-3.5 opacity-75 text-xs">
                             {u.createdAt
                               ? new Date(u.createdAt).toLocaleDateString()
-                              : '—'}
+                              : "—"}
                           </td>
                           <td className="py-3.5">
                             <div className="flex gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditUserModal(u)}
-                                style={{ backgroundColor: 'var(--brand-secondary)' }}
+                                style={{
+                                  backgroundColor: "var(--brand-secondary)",
+                                }}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                               >
                                 <Edit3 size={13} />
@@ -2025,7 +2134,8 @@ export default function AdminDashboard() {
                               <button
                                 type="button"
                                 disabled={
-                                  u.role === 'superadmin' && roleCounts.superadmin <= 1
+                                  u.role === "superadmin" &&
+                                  roleCounts.superadmin <= 1
                                 }
                                 onClick={async () => {
                                   try {
@@ -2050,8 +2160,8 @@ export default function AdminDashboard() {
 
               <div className="mt-5 pt-4 border-t border-current/10 flex items-center justify-between gap-4 flex-wrap text-xs">
                 <span className="opacity-75">
-                  Showing <strong>{paginatedUsers.length}</strong> of{' '}
-                  <strong>{filteredUsers.length}</strong> filtered users (Total:{' '}
+                  Showing <strong>{paginatedUsers.length}</strong> of{" "}
+                  <strong>{filteredUsers.length}</strong> filtered users (Total:{" "}
                   {users.length})
                 </span>
 
@@ -2060,41 +2170,46 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       disabled={userCurrentPage === 1}
-                      onClick={() => setUserCurrentPage((p) => Math.max(1, p - 1))}
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      onClick={() =>
+                        setUserCurrentPage((p) => Math.max(1, p - 1))
+                      }
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                     >
                       <ChevronLeft size={15} />
                     </button>
 
-                    {Array.from({ length: userTotalPages }, (_, i) => i + 1).map(
-                      (pageNum) => (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => setUserCurrentPage(pageNum)}
-                          style={
-                            userCurrentPage === pageNum
-                              ? {
-                                  backgroundColor: 'var(--brand-primary)',
-                                  color: 'var(--brand-surface)',
-                                }
-                              : { backgroundColor: 'var(--brand-secondary)' }
-                          }
-                          className="w-8 h-8 rounded-lg font-semibold flex items-center justify-center cursor-pointer"
-                        >
-                          {pageNum}
-                        </button>
-                      )
-                    )}
+                    {Array.from(
+                      { length: userTotalPages },
+                      (_, i) => i + 1,
+                    ).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setUserCurrentPage(pageNum)}
+                        style={
+                          userCurrentPage === pageNum
+                            ? {
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
+                              }
+                            : { backgroundColor: "var(--brand-secondary)" }
+                        }
+                        className="w-8 h-8 rounded-lg font-semibold flex items-center justify-center cursor-pointer"
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
 
                     <button
                       type="button"
                       disabled={userCurrentPage === userTotalPages}
                       onClick={() =>
-                        setUserCurrentPage((p) => Math.min(userTotalPages, p + 1))
+                        setUserCurrentPage((p) =>
+                          Math.min(userTotalPages, p + 1),
+                        )
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                     >
                       <ChevronRight size={15} />
@@ -2109,12 +2224,13 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 5: THEME & TYPOGRAPHY CUSTOMIZER
             ================================================================= */}
-        {activeTab === 'theme' && (
+        {activeTab === "theme" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="lg:col-span-7 rounded-2xl border p-5 sm:p-6 shadow-xs space-y-6"
             >
@@ -2124,13 +2240,14 @@ export default function AdminDashboard() {
                     Web App Theme & Typography
                   </h2>
                   <p className="text-xs opacity-75">
-                    Customize primary/secondary colors and select from preloaded Google Fonts. Default brand values are highlighted.
+                    Customize primary/secondary colors and select from preloaded
+                    Google Fonts. Default brand values are highlighted.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleResetDefaultTheme}
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer hover:opacity-85"
                 >
                   <RotateCcw size={14} />
@@ -2163,10 +2280,10 @@ export default function AdminDashboard() {
                           })
                         }
                         style={{
-                          backgroundColor: 'var(--brand-secondary)',
+                          backgroundColor: "var(--brand-secondary)",
                           borderColor: isSelected
-                            ? 'var(--brand-primary)'
-                            : 'transparent',
+                            ? "var(--brand-primary)"
+                            : "transparent",
                         }}
                         className="p-3.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 cursor-pointer transition-all"
                       >
@@ -2176,8 +2293,8 @@ export default function AdminDashboard() {
                             {preset.isDefault && (
                               <span
                                 style={{
-                                  backgroundColor: 'var(--brand-primary)',
-                                  color: 'var(--brand-surface)',
+                                  backgroundColor: "var(--brand-primary)",
+                                  color: "var(--brand-surface)",
                                 }}
                                 className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
                               >
@@ -2208,7 +2325,7 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-xl"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -2224,7 +2341,10 @@ export default function AdminDashboard() {
                       type="color"
                       value={themeForm.primaryColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, primaryColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          primaryColor: e.target.value,
+                        })
                       }
                       className="w-11 h-11 rounded-lg cursor-pointer border-0 bg-transparent"
                     />
@@ -2232,16 +2352,19 @@ export default function AdminDashboard() {
                       type="text"
                       value={themeForm.primaryColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, primaryColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          primaryColor: e.target.value,
+                        })
                       }
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="flex-1 px-3 py-2 rounded-lg text-sm font-mono uppercase"
                     />
                   </div>
                 </div>
 
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-xl"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -2257,7 +2380,10 @@ export default function AdminDashboard() {
                       type="color"
                       value={themeForm.secondaryColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, secondaryColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          secondaryColor: e.target.value,
+                        })
                       }
                       className="w-11 h-11 rounded-lg cursor-pointer border-0 bg-transparent"
                     />
@@ -2265,20 +2391,25 @@ export default function AdminDashboard() {
                       type="text"
                       value={themeForm.secondaryColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, secondaryColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          secondaryColor: e.target.value,
+                        })
                       }
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="flex-1 px-3 py-2 rounded-lg text-sm font-mono uppercase"
                     />
                   </div>
                 </div>
 
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-xl"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold">Card Surface Color</span>
+                    <span className="text-xs font-bold">
+                      Card Surface Color
+                    </span>
                     <span className="text-[11px] px-2 py-0.5 rounded-md bg-black/10 font-semibold">
                       Default: {DEFAULT_THEME.surfaceColor}
                     </span>
@@ -2288,7 +2419,10 @@ export default function AdminDashboard() {
                       type="color"
                       value={themeForm.surfaceColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, surfaceColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          surfaceColor: e.target.value,
+                        })
                       }
                       className="w-11 h-11 rounded-lg cursor-pointer border-0 bg-transparent"
                     />
@@ -2296,16 +2430,19 @@ export default function AdminDashboard() {
                       type="text"
                       value={themeForm.surfaceColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, surfaceColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          surfaceColor: e.target.value,
+                        })
                       }
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="flex-1 px-3 py-2 rounded-lg text-sm font-mono uppercase"
                     />
                   </div>
                 </div>
 
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-xl"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -2321,7 +2458,10 @@ export default function AdminDashboard() {
                       type="color"
                       value={themeForm.accentColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, accentColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          accentColor: e.target.value,
+                        })
                       }
                       className="w-11 h-11 rounded-lg cursor-pointer border-0 bg-transparent"
                     />
@@ -2329,9 +2469,12 @@ export default function AdminDashboard() {
                       type="text"
                       value={themeForm.accentColor}
                       onChange={(e) =>
-                        setThemeForm({ ...themeForm, accentColor: e.target.value })
+                        setThemeForm({
+                          ...themeForm,
+                          accentColor: e.target.value,
+                        })
                       }
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="flex-1 px-3 py-2 rounded-lg text-sm font-mono uppercase"
                     />
                   </div>
@@ -2347,19 +2490,24 @@ export default function AdminDashboard() {
                   <select
                     value={themeForm.headingFont}
                     onChange={(e) =>
-                      setThemeForm({ ...themeForm, headingFont: e.target.value })
+                      setThemeForm({
+                        ...themeForm,
+                        headingFont: e.target.value,
+                      })
                     }
                     style={{
-                      backgroundColor: 'var(--brand-secondary)',
+                      backgroundColor: "var(--brand-secondary)",
                       borderColor:
-                        'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                        "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                     }}
                     className="w-full px-3.5 py-3 rounded-xl border text-sm font-medium cursor-pointer"
                   >
                     {FONT_FAMILY_OPTIONS.map((f) => (
                       <option key={f.name} value={f.name}>
-                        {f.name}{' '}
-                        {f.isDefaultHeading ? '★ (Default Heading)' : `— ${f.type}`}
+                        {f.name}{" "}
+                        {f.isDefaultHeading
+                          ? "★ (Default Heading)"
+                          : `— ${f.type}`}
                       </option>
                     ))}
                   </select>
@@ -2376,15 +2524,16 @@ export default function AdminDashboard() {
                       setThemeForm({ ...themeForm, bodyFont: e.target.value })
                     }
                     style={{
-                      backgroundColor: 'var(--brand-secondary)',
+                      backgroundColor: "var(--brand-secondary)",
                       borderColor:
-                        'color-mix(in srgb, var(--brand-primary) 22%, transparent)',
+                        "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
                     }}
                     className="w-full px-3.5 py-3 rounded-xl border text-sm font-medium cursor-pointer"
                   >
                     {FONT_FAMILY_OPTIONS.map((f) => (
                       <option key={f.name} value={f.name}>
-                        {f.name} {f.isDefaultBody ? '★ (Default Body)' : `— ${f.type}`}
+                        {f.name}{" "}
+                        {f.isDefaultBody ? "★ (Default Body)" : `— ${f.type}`}
                       </option>
                     ))}
                   </select>
@@ -2395,8 +2544,8 @@ export default function AdminDashboard() {
                 type="button"
                 onClick={() => handleSaveTheme()}
                 style={{
-                  backgroundColor: 'var(--brand-primary)',
-                  color: 'var(--brand-surface)',
+                  backgroundColor: "var(--brand-primary)",
+                  color: "var(--brand-surface)",
                 }}
                 className="w-full py-3.5 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 shadow-md hover:opacity-95 cursor-pointer"
               >
@@ -2411,7 +2560,8 @@ export default function AdminDashboard() {
                   backgroundColor: themeForm.secondaryColor,
                   color: themeForm.primaryColor,
                   fontFamily: `'${themeForm.bodyFont}', sans-serif`,
-                  borderColor: 'color-mix(in srgb, currentColor 20%, transparent)',
+                  borderColor:
+                    "color-mix(in srgb, currentColor 20%, transparent)",
                 }}
                 className="rounded-3xl border p-6 shadow-xl transition-all"
               >
@@ -2422,7 +2572,8 @@ export default function AdminDashboard() {
                 <div
                   style={{
                     backgroundColor: themeForm.surfaceColor,
-                    borderColor: 'color-mix(in srgb, currentColor 15%, transparent)',
+                    borderColor:
+                      "color-mix(in srgb, currentColor 15%, transparent)",
                   }}
                   className="rounded-2xl border p-6 text-center shadow-md"
                 >
@@ -2452,7 +2603,7 @@ export default function AdminDashboard() {
                   <div
                     style={{
                       backgroundColor: themeForm.accentColor,
-                      color: '#FFFFFF',
+                      color: "#FFFFFF",
                     }}
                     className="w-full py-3 px-4 rounded-xl text-sm font-semibold shadow-xs"
                   >
@@ -2467,12 +2618,13 @@ export default function AdminDashboard() {
         {/* =================================================================
             TAB 6: SOCIAL LINKS, WHATSAPP & ADMIN SECURITY
             ================================================================= */}
-        {activeTab === 'settings' && (
+        {activeTab === "settings" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="lg:col-span-7 rounded-2xl border p-5 sm:p-6 shadow-xs"
             >
@@ -2484,7 +2636,7 @@ export default function AdminDashboard() {
                   e.preventDefault();
                   try {
                     await updateSettings(settingsForm);
-                    showToast('Saved brand & social links to MongoDB!');
+                    showToast("Saved brand & social links to MongoDB!");
                   } catch (err: any) {
                     showToast(err.message);
                   }
@@ -2500,9 +2652,12 @@ export default function AdminDashboard() {
                     required
                     value={settingsForm.brandName}
                     onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, brandName: e.target.value })
+                      setSettingsForm({
+                        ...settingsForm,
+                        brandName: e.target.value,
+                      })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2515,9 +2670,12 @@ export default function AdminDashboard() {
                     type="text"
                     value={settingsForm.tagline}
                     onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, tagline: e.target.value })
+                      setSettingsForm({
+                        ...settingsForm,
+                        tagline: e.target.value,
+                      })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2536,7 +2694,7 @@ export default function AdminDashboard() {
                         whatsappNumber: e.target.value,
                       })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2555,7 +2713,7 @@ export default function AdminDashboard() {
                           instagramUrl: e.target.value,
                         })
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                     />
                   </div>
@@ -2572,7 +2730,7 @@ export default function AdminDashboard() {
                           facebookUrl: e.target.value,
                         })
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                     />
                   </div>
@@ -2589,7 +2747,7 @@ export default function AdminDashboard() {
                           tiktokUrl: e.target.value,
                         })
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                     />
                   </div>
@@ -2609,7 +2767,7 @@ export default function AdminDashboard() {
                           currencySymbol: e.target.value,
                         })
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                     />
                   </div>
@@ -2628,7 +2786,7 @@ export default function AdminDashboard() {
                           itemsPerPage: Number(e.target.value) || 6,
                         })
                       }
-                      style={{ backgroundColor: 'var(--brand-secondary)' }}
+                      style={{ backgroundColor: "var(--brand-secondary)" }}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                     />
                   </div>
@@ -2637,8 +2795,8 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="px-5 py-3 rounded-xl text-sm font-semibold shadow-xs cursor-pointer"
                 >
@@ -2649,8 +2807,9 @@ export default function AdminDashboard() {
 
             <div
               style={{
-                backgroundColor: 'var(--brand-surface)',
-                borderColor: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
               }}
               className="lg:col-span-5 rounded-2xl border p-5 sm:p-6 shadow-xs h-fit"
             >
@@ -2658,7 +2817,8 @@ export default function AdminDashboard() {
                 My Account Security
               </h2>
               <p className="text-xs opacity-75 mb-4">
-                Update your signed-in account ({adminUser.role}) inside the `users` collection.
+                Update your signed-in account ({adminUser.role}) inside the
+                `users` collection.
               </p>
 
               {securityError && (
@@ -2670,15 +2830,15 @@ export default function AdminDashboard() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  setSecurityError('');
+                  setSecurityError("");
                   try {
                     await updateAdminCredentials(securityForm);
                     setSecurityForm((prev) => ({
                       ...prev,
-                      currentPassword: '',
-                      newPassword: '',
+                      currentPassword: "",
+                      newPassword: "",
                     }));
-                    showToast('Updated your account credentials!');
+                    showToast("Updated your account credentials!");
                   } catch (err: any) {
                     setSecurityError(err.message);
                   }
@@ -2696,7 +2856,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setSecurityForm({ ...securityForm, name: e.target.value })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2709,9 +2869,12 @@ export default function AdminDashboard() {
                     required
                     value={securityForm.email}
                     onChange={(e) =>
-                      setSecurityForm({ ...securityForm, email: e.target.value })
+                      setSecurityForm({
+                        ...securityForm,
+                        email: e.target.value,
+                      })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2729,7 +2892,7 @@ export default function AdminDashboard() {
                         currentPassword: e.target.value,
                       })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -2748,15 +2911,15 @@ export default function AdminDashboard() {
                         newPassword: e.target.value,
                       })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold cursor-pointer"
                 >
@@ -2779,8 +2942,8 @@ export default function AdminDashboard() {
         >
           <div
             style={{
-              backgroundColor: 'var(--brand-surface)',
-              color: 'var(--brand-primary)',
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
             }}
             className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-7 shadow-2xl relative animate-fade-up"
             onClick={(e) => e.stopPropagation()}
@@ -2788,25 +2951,26 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setDetailModalType(null)}
-              style={{ backgroundColor: 'var(--brand-secondary)' }}
+              style={{ backgroundColor: "var(--brand-secondary)" }}
               className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer"
             >
               <X size={18} />
             </button>
 
             {/* 1. FULL VISITOR ACTIVITY LOG MODAL (SEARCH, EVENT FILTER, DATE RANGE, PAGINATION) */}
-            {detailModalType === 'activity_log' && (
+            {detailModalType === "activity_log" && (
               <div>
                 <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-1">
                   Full Visitor Activity Log & Monitoring
                 </h2>
                 <p className="text-xs sm:text-sm opacity-75 mb-5">
-                  Search events, filter by interaction type or date range, and browse paginated visitor history.
+                  Search events, filter by interaction type or date range, and
+                  browse paginated visitor history.
                 </p>
 
                 {/* Filter Controls */}
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-2xl mb-5 space-y-3"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -2821,7 +2985,7 @@ export default function AdminDashboard() {
                         placeholder="Search item name, code, or action..."
                         value={logSearch}
                         onChange={(e) => setLogSearch(e.target.value)}
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full pl-9 pr-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm outline-none"
                       />
                     </div>
@@ -2831,15 +2995,21 @@ export default function AdminDashboard() {
                       <select
                         value={logTypeFilter}
                         onChange={(e) => setLogTypeFilter(e.target.value)}
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full px-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm font-medium"
                       >
                         <option value="All">All Event Types</option>
-                        <option value="item_contact">WhatsApp Item Contact</option>
+                        <option value="item_contact">
+                          WhatsApp Item Contact
+                        </option>
                         <option value="item_view">Item Detail Views</option>
                         <option value="qr_scan">QR Main Menu Visits</option>
-                        <option value="catalog_view">Catalog View List Visits</option>
-                        <option value="social_click">Social Button Clicks</option>
+                        <option value="catalog_view">
+                          Catalog View List Visits
+                        </option>
+                        <option value="social_click">
+                          Social Button Clicks
+                        </option>
                       </select>
                     </div>
 
@@ -2850,7 +3020,7 @@ export default function AdminDashboard() {
                         type="date"
                         value={logDateFrom}
                         onChange={(e) => setLogDateFrom(e.target.value)}
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full px-2.5 py-2 rounded-xl border border-current/15 text-xs"
                         title="From Date"
                       />
@@ -2862,7 +3032,7 @@ export default function AdminDashboard() {
                         type="date"
                         value={logDateTo}
                         onChange={(e) => setLogDateTo(e.target.value)}
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full px-2.5 py-2 rounded-xl border border-current/15 text-xs"
                         title="To Date"
                       />
@@ -2872,8 +3042,10 @@ export default function AdminDashboard() {
                     <div className="md:col-span-1">
                       <select
                         value={logPerPage}
-                        onChange={(e) => setLogPerPage(Number(e.target.value) || 8)}
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        onChange={(e) =>
+                          setLogPerPage(Number(e.target.value) || 8)
+                        }
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full px-2 py-2 rounded-xl border border-current/15 text-xs font-semibold"
                       >
                         <option value={8}>8</option>
@@ -2883,18 +3055,22 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {(logSearch || logTypeFilter !== 'All' || logDateFrom || logDateTo) && (
+                  {(logSearch ||
+                    logTypeFilter !== "All" ||
+                    logDateFrom ||
+                    logDateTo) && (
                     <div className="flex justify-between items-center text-xs pt-1">
                       <span>
-                        Matching events: <strong>{filteredActivityLogs.length}</strong>
+                        Matching events:{" "}
+                        <strong>{filteredActivityLogs.length}</strong>
                       </span>
                       <button
                         type="button"
                         onClick={() => {
-                          setLogSearch('');
-                          setLogTypeFilter('All');
-                          setLogDateFrom('');
-                          setLogDateTo('');
+                          setLogSearch("");
+                          setLogTypeFilter("All");
+                          setLogDateFrom("");
+                          setLogDateTo("");
                         }}
                         className="underline font-semibold cursor-pointer"
                       >
@@ -2919,31 +3095,39 @@ export default function AdminDashboard() {
                     <tbody>
                       {paginatedActivityLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center opacity-70">
+                          <td
+                            colSpan={5}
+                            className="py-8 text-center opacity-70"
+                          >
                             No visitor activity logs match your filters.
                           </td>
                         </tr>
                       ) : (
                         paginatedActivityLogs.map((ev, idx) => (
-                          <tr key={ev._id || idx} className="border-b border-current/10">
+                          <tr
+                            key={ev._id || idx}
+                            className="border-b border-current/10"
+                          >
                             <td className="py-3">
                               <span
                                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                                  ev.type === 'item_contact'
-                                    ? 'bg-[#E3EFE8] text-[#286646]'
-                                    : ev.type === 'item_view'
-                                    ? 'bg-amber-500/15 text-amber-900'
-                                    : 'bg-black/10'
+                                  ev.type === "item_contact"
+                                    ? "bg-[#E3EFE8] text-[#286646]"
+                                    : ev.type === "item_view"
+                                      ? "bg-amber-500/15 text-amber-900"
+                                      : "bg-black/10"
                                 }`}
                               >
                                 {ev.type}
                               </span>
                             </td>
                             <td className="py-3 font-mono text-xs font-bold">
-                              {ev.itemCode || '—'}
+                              {ev.itemCode || "—"}
                             </td>
                             <td className="py-3 font-semibold">{ev.label}</td>
-                            <td className="py-3 opacity-80">{ev.category || '—'}</td>
+                            <td className="py-3 opacity-80">
+                              {ev.category || "—"}
+                            </td>
                             <td className="py-3 text-xs opacity-75 whitespace-nowrap">
                               {new Date(ev.timestamp).toLocaleString()}
                             </td>
@@ -2957,7 +3141,7 @@ export default function AdminDashboard() {
                 {/* Pagination */}
                 <div className="mt-5 pt-4 border-t border-current/10 flex items-center justify-between flex-wrap gap-3 text-xs">
                   <span>
-                    Showing <strong>{paginatedActivityLogs.length}</strong> of{' '}
+                    Showing <strong>{paginatedActivityLogs.length}</strong> of{" "}
                     <strong>{filteredActivityLogs.length}</strong> events
                   </span>
                   {logTotalPages > 1 && (
@@ -2966,38 +3150,39 @@ export default function AdminDashboard() {
                         type="button"
                         disabled={logPage === 1}
                         onClick={() => setLogPage((p) => Math.max(1, p - 1))}
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                       >
                         <ChevronLeft size={15} />
                       </button>
-                      {Array.from({ length: logTotalPages }, (_, i) => i + 1).map(
-                        (pageNum) => (
-                          <button
-                            key={pageNum}
-                            type="button"
-                            onClick={() => setLogPage(pageNum)}
-                            style={
-                              logPage === pageNum
-                                ? {
-                                    backgroundColor: 'var(--brand-primary)',
-                                    color: 'var(--brand-surface)',
-                                  }
-                                : { backgroundColor: 'var(--brand-secondary)' }
-                            }
-                            className="w-8 h-8 rounded-lg font-semibold flex items-center justify-center cursor-pointer"
-                          >
-                            {pageNum}
-                          </button>
-                        )
-                      )}
+                      {Array.from(
+                        { length: logTotalPages },
+                        (_, i) => i + 1,
+                      ).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setLogPage(pageNum)}
+                          style={
+                            logPage === pageNum
+                              ? {
+                                  backgroundColor: "var(--brand-primary)",
+                                  color: "var(--brand-surface)",
+                                }
+                              : { backgroundColor: "var(--brand-secondary)" }
+                          }
+                          className="w-8 h-8 rounded-lg font-semibold flex items-center justify-center cursor-pointer"
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
                       <button
                         type="button"
                         disabled={logPage === logTotalPages}
                         onClick={() =>
                           setLogPage((p) => Math.min(logTotalPages, p + 1))
                         }
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                       >
                         <ChevronRight size={15} />
@@ -3009,20 +3194,21 @@ export default function AdminDashboard() {
             )}
 
             {/* 2. MOST CONTACTED & VISITED ITEMS / DETAILED ITEM ANALYTICS MODAL */}
-            {(detailModalType === 'contacted_visited' ||
-              detailModalType === 'item_analytics') && (
+            {(detailModalType === "contacted_visited" ||
+              detailModalType === "item_analytics") && (
               <div>
                 <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-1">
-                  {detailModalType === 'contacted_visited'
-                    ? 'Most Contacted & Visited Items — Full Analysis'
-                    : 'Detailed Item Analytics & Conversion Explorer'}
+                  {detailModalType === "contacted_visited"
+                    ? "Most Contacted & Visited Items — Full Analysis"
+                    : "Detailed Item Analytics & Conversion Explorer"}
                 </h2>
                 <p className="text-xs sm:text-sm opacity-75 mb-5">
-                  Filter by category or stock status, search by item code (`CAT-ITEM`), and compare views vs. WhatsApp inquiries.
+                  Filter by category or stock status, search by item code
+                  (`CAT-ITEM`), and compare views vs. WhatsApp inquiries.
                 </p>
 
                 <div
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="p-4 rounded-2xl mb-5 grid grid-cols-1 sm:grid-cols-4 gap-3"
                 >
                   <div className="relative flex items-center">
@@ -3035,7 +3221,7 @@ export default function AdminDashboard() {
                       placeholder="Search name or code..."
                       value={itemAnalyticsSearch}
                       onChange={(e) => setItemAnalyticsSearch(e.target.value)}
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm outline-none"
                     />
                   </div>
@@ -3043,7 +3229,7 @@ export default function AdminDashboard() {
                   <select
                     value={itemAnalyticsCat}
                     onChange={(e) => setItemAnalyticsCat(e.target.value)}
-                    style={{ backgroundColor: 'var(--brand-surface)' }}
+                    style={{ backgroundColor: "var(--brand-surface)" }}
                     className="px-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm font-medium"
                   >
                     <option value="All">All Categories</option>
@@ -3057,7 +3243,7 @@ export default function AdminDashboard() {
                   <select
                     value={itemAnalyticsStock}
                     onChange={(e) => setItemAnalyticsStock(e.target.value)}
-                    style={{ backgroundColor: 'var(--brand-surface)' }}
+                    style={{ backgroundColor: "var(--brand-surface)" }}
                     className="px-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm font-medium"
                   >
                     <option value="All">All Stock Statuses</option>
@@ -3069,12 +3255,16 @@ export default function AdminDashboard() {
                   <select
                     value={itemAnalyticsSort}
                     onChange={(e) => setItemAnalyticsSort(e.target.value)}
-                    style={{ backgroundColor: 'var(--brand-surface)' }}
+                    style={{ backgroundColor: "var(--brand-surface)" }}
                     className="px-3 py-2 rounded-xl border border-current/15 text-xs sm:text-sm font-medium"
                   >
                     <option value="contacts-desc">Sort: Most Contacted</option>
-                    <option value="views-desc">Sort: Most Visited (Views)</option>
-                    <option value="conv-desc">Sort: Highest Conversion %</option>
+                    <option value="views-desc">
+                      Sort: Most Visited (Views)
+                    </option>
+                    <option value="conv-desc">
+                      Sort: Highest Conversion %
+                    </option>
                     <option value="price-desc">Sort: Highest Price</option>
                   </select>
                 </div>
@@ -3096,17 +3286,27 @@ export default function AdminDashboard() {
                     <tbody>
                       {paginatedAnalyticsItems.map((item, idx) => {
                         const rank =
-                          (itemAnalyticsPage - 1) * itemAnalyticsPerPage + idx + 1;
+                          (itemAnalyticsPage - 1) * itemAnalyticsPerPage +
+                          idx +
+                          1;
                         const conv =
                           item.views > 0
-                            ? ((item.whatsappClicks / item.views) * 100).toFixed(1)
-                            : '0.0';
+                            ? (
+                                (item.whatsappClicks / item.views) *
+                                100
+                              ).toFixed(1)
+                            : "0.0";
                         return (
-                          <tr key={item.id} className="border-b border-current/10">
+                          <tr
+                            key={item.id}
+                            className="border-b border-current/10"
+                          >
                             <td className="py-3 font-bold">#{rank}</td>
                             <td className="py-3">
                               <span
-                                style={{ backgroundColor: 'var(--brand-secondary)' }}
+                                style={{
+                                  backgroundColor: "var(--brand-secondary)",
+                                }}
                                 className="px-2 py-1 rounded font-mono text-xs font-bold"
                               >
                                 {item.code}
@@ -3115,12 +3315,12 @@ export default function AdminDashboard() {
                             <td className="py-3 font-semibold">{item.name}</td>
                             <td className="py-3">{item.category}</td>
                             <td className="py-3 font-bold">
-                              {settings.currencySymbol}
                               {item.price}
+                              {settings.currencySymbol}
                             </td>
                             <td className="py-3">{item.views || 0}</td>
                             <td
-                              style={{ color: 'var(--brand-accent)' }}
+                              style={{ color: "var(--brand-accent)" }}
                               className="py-3 font-bold"
                             >
                               {item.whatsappClicks || 0}
@@ -3135,7 +3335,7 @@ export default function AdminDashboard() {
 
                 <div className="mt-5 pt-4 border-t border-current/10 flex items-center justify-between text-xs">
                   <span>
-                    Showing <strong>{paginatedAnalyticsItems.length}</strong> of{' '}
+                    Showing <strong>{paginatedAnalyticsItems.length}</strong> of{" "}
                     <strong>{filteredAnalyticsItems.length}</strong> items
                   </span>
                   {itemAnalyticsTotalPages > 1 && (
@@ -3146,14 +3346,14 @@ export default function AdminDashboard() {
                         onClick={() =>
                           setItemAnalyticsPage((p) => Math.max(1, p - 1))
                         }
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                       >
                         <ChevronLeft size={15} />
                       </button>
                       {Array.from(
                         { length: itemAnalyticsTotalPages },
-                        (_, i) => i + 1
+                        (_, i) => i + 1,
                       ).map((pageNum) => (
                         <button
                           key={pageNum}
@@ -3162,10 +3362,10 @@ export default function AdminDashboard() {
                           style={
                             itemAnalyticsPage === pageNum
                               ? {
-                                  backgroundColor: 'var(--brand-primary)',
-                                  color: 'var(--brand-surface)',
+                                  backgroundColor: "var(--brand-primary)",
+                                  color: "var(--brand-surface)",
                                 }
-                              : { backgroundColor: 'var(--brand-secondary)' }
+                              : { backgroundColor: "var(--brand-secondary)" }
                           }
                           className="w-8 h-8 rounded-lg font-semibold flex items-center justify-center cursor-pointer"
                         >
@@ -3177,10 +3377,10 @@ export default function AdminDashboard() {
                         disabled={itemAnalyticsPage === itemAnalyticsTotalPages}
                         onClick={() =>
                           setItemAnalyticsPage((p) =>
-                            Math.min(itemAnalyticsTotalPages, p + 1)
+                            Math.min(itemAnalyticsTotalPages, p + 1),
                           )
                         }
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40 cursor-pointer"
                       >
                         <ChevronRight size={15} />
@@ -3192,62 +3392,68 @@ export default function AdminDashboard() {
             )}
 
             {/* 3. MAIN MENU SOCIAL CLICKS DEEP-DIVE MODAL */}
-            {detailModalType === 'social_clicks' && (
+            {detailModalType === "social_clicks" && (
               <div>
                 <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-1">
                   Main Menu Social & Contact Clicks Analysis
                 </h2>
                 <p className="text-xs sm:text-sm opacity-75 mb-5">
-                  Share of outbound traffic from your QR Main Menu across Instagram, TikTok, Facebook, and Direct WhatsApp.
+                  Share of outbound traffic from your QR Main Menu across
+                  Instagram, TikTok, Facebook, and Direct WhatsApp.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   {[
                     {
-                      key: 'instagram',
-                      label: 'Instagram Profile',
+                      key: "instagram",
+                      label: "Instagram Profile",
                       count: analytics.socialClicks?.instagram || 0,
                       url: settings.instagramUrl,
                     },
                     {
-                      key: 'tiktok',
-                      label: 'TikTok Channel',
+                      key: "tiktok",
+                      label: "TikTok Channel",
                       count: analytics.socialClicks?.tiktok || 0,
                       url: settings.tiktokUrl,
                     },
                     {
-                      key: 'facebook',
-                      label: 'Facebook Page',
+                      key: "facebook",
+                      label: "Facebook Page",
                       count: analytics.socialClicks?.facebook || 0,
                       url: settings.facebookUrl,
                     },
                     {
-                      key: 'whatsappDirect',
-                      label: 'Direct WhatsApp Button',
+                      key: "whatsappDirect",
+                      label: "Direct WhatsApp Button",
                       count: analytics.socialClicks?.whatsappDirect || 0,
                       url: `WhatsApp (${settings.whatsappNumber})`,
                     },
                   ].map((plat) => {
                     const sharePct =
                       stats.totalSocialClicks > 0
-                        ? ((plat.count / stats.totalSocialClicks) * 100).toFixed(1)
-                        : '0.0';
+                        ? (
+                            (plat.count / stats.totalSocialClicks) *
+                            100
+                          ).toFixed(1)
+                        : "0.0";
                     const qrClickThrough =
                       analytics.totalQrLandingVisits > 0
                         ? (
                             (plat.count / analytics.totalQrLandingVisits) *
                             100
                           ).toFixed(1)
-                        : '0.0';
+                        : "0.0";
 
                     return (
                       <div
                         key={plat.key}
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="p-4 rounded-2xl"
                       >
                         <div className="flex justify-between items-baseline mb-1">
-                          <span className="font-bold text-sm">{plat.label}</span>
+                          <span className="font-bold text-sm">
+                            {plat.label}
+                          </span>
                           <span className="font-heading text-3xl font-bold">
                             {plat.count}
                           </span>
@@ -3259,7 +3465,7 @@ export default function AdminDashboard() {
                           <div
                             style={{
                               width: `${sharePct}%`,
-                              backgroundColor: 'var(--brand-primary)',
+                              backgroundColor: "var(--brand-primary)",
                             }}
                             className="h-full rounded-full"
                           />
@@ -3276,13 +3482,14 @@ export default function AdminDashboard() {
             )}
 
             {/* 4. CATEGORY DEMAND DEEP-DIVE MODAL */}
-            {detailModalType === 'category_demand' && (
+            {detailModalType === "category_demand" && (
               <div>
                 <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-1">
                   Category Demand & Conversion Analysis
                 </h2>
                 <p className="text-xs sm:text-sm opacity-75 mb-5">
-                  Compare category codes, total assigned products, visitor views, WhatsApp inquiries, and conversion rates.
+                  Compare category codes, total assigned products, visitor
+                  views, WhatsApp inquiries, and conversion rates.
                 </p>
 
                 <div className="overflow-x-auto">
@@ -3299,13 +3506,18 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {stats.categoryStats.map((cat) => (
-                        <tr key={cat.name} className="border-b border-current/10">
-                          <td className="py-3 font-mono font-bold">{cat.code}</td>
+                        <tr
+                          key={cat.name}
+                          className="border-b border-current/10"
+                        >
+                          <td className="py-3 font-mono font-bold">
+                            {cat.code}
+                          </td>
                           <td className="py-3 font-semibold">{cat.name}</td>
                           <td className="py-3">{cat.itemCount} items</td>
                           <td className="py-3">{cat.views}</td>
                           <td
-                            style={{ color: 'var(--brand-accent)' }}
+                            style={{ color: "var(--brand-accent)" }}
                             className="py-3 font-bold"
                           >
                             {cat.contacts}
@@ -3330,8 +3542,8 @@ export default function AdminDashboard() {
         >
           <div
             style={{
-              backgroundColor: 'var(--brand-surface)',
-              color: 'var(--brand-primary)',
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
             }}
             className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
@@ -3339,14 +3551,14 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setIsUserModalOpen(false)}
-              style={{ backgroundColor: 'var(--brand-secondary)' }}
+              style={{ backgroundColor: "var(--brand-secondary)" }}
               className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer"
             >
               <X size={18} />
             </button>
 
             <h2 className="font-heading text-2xl font-bold mb-1">
-              {editingUser ? `Edit User: ${editingUser.name}` : 'Add New User'}
+              {editingUser ? `Edit User: ${editingUser.name}` : "Add New User"}
             </h2>
             <p className="text-xs opacity-75 mb-4">
               All accounts are stored in the unified MongoDB `users` collection.
@@ -3368,8 +3580,10 @@ export default function AdminDashboard() {
                   required
                   placeholder="e.g., Walid Mohamed"
                   value={userForm.name}
-                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  onChange={(e) =>
+                    setUserForm({ ...userForm, name: e.target.value })
+                  }
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                 />
               </div>
@@ -3387,7 +3601,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setUserForm({ ...userForm, email: e.target.value })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -3403,7 +3617,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setUserForm({ ...userForm, phone: e.target.value })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -3417,9 +3631,12 @@ export default function AdminDashboard() {
                   <select
                     value={userForm.role}
                     onChange={(e) =>
-                      setUserForm({ ...userForm, role: e.target.value as UserRole })
+                      setUserForm({
+                        ...userForm,
+                        role: e.target.value as UserRole,
+                      })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm font-semibold"
                   >
                     <option value="superadmin">superadmin</option>
@@ -3441,7 +3658,7 @@ export default function AdminDashboard() {
                         status: e.target.value as UserStatus,
                       })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm font-semibold"
                   >
                     <option value="Active">Active</option>
@@ -3453,8 +3670,8 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1">
                   {editingUser
-                    ? 'New Password (leave blank to keep current)'
-                    : 'Password (min 6 characters)'}
+                    ? "New Password (leave blank to keep current)"
+                    : "Password (min 6 characters)"}
                 </label>
                 <input
                   type="password"
@@ -3465,7 +3682,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setUserForm({ ...userForm, password: e.target.value })
                   }
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                 />
               </div>
@@ -3474,7 +3691,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setIsUserModalOpen(false)}
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Cancel
@@ -3482,13 +3699,15 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   <UserCheck size={15} />
-                  <span>{editingUser ? 'Save User Changes' : 'Create User'}</span>
+                  <span>
+                    {editingUser ? "Save User Changes" : "Create User"}
+                  </span>
                 </button>
               </div>
             </form>
@@ -3504,8 +3723,8 @@ export default function AdminDashboard() {
         >
           <div
             style={{
-              backgroundColor: 'var(--brand-surface)',
-              color: 'var(--brand-primary)',
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
             }}
             className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
@@ -3513,17 +3732,18 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setIsProductModalOpen(false)}
-              style={{ backgroundColor: 'var(--brand-secondary)' }}
+              style={{ backgroundColor: "var(--brand-secondary)" }}
               className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer"
             >
               <X size={18} />
             </button>
 
             <h2 className="font-heading text-2xl font-bold mb-1">
-              {editingProduct ? 'Edit Handmade Item' : 'Add New Handmade Item'}
+              {editingProduct ? "Edit Handmade Item" : "Add New Handmade Item"}
             </h2>
             <p className="text-xs opacity-75 mb-4">
-              Each product receives a unique code: Category Code (before `-`) + Item Code (after `-`).
+              Each product receives a unique code: Category Code (before `-`) +
+              Item Code (after `-`).
             </p>
 
             {productFormError && (
@@ -3536,9 +3756,9 @@ export default function AdminDashboard() {
               {/* Two-Part Product Code Generator Box */}
               <div
                 style={{
-                  backgroundColor: 'var(--brand-secondary)',
+                  backgroundColor: "var(--brand-secondary)",
                   borderColor:
-                    'color-mix(in srgb, var(--brand-primary) 20%, transparent)',
+                    "color-mix(in srgb, var(--brand-primary) 20%, transparent)",
                 }}
                 className="p-3.5 rounded-2xl border"
               >
@@ -3548,8 +3768,8 @@ export default function AdminDashboard() {
                   </span>
                   <span
                     style={{
-                      backgroundColor: 'var(--brand-primary)',
-                      color: 'var(--brand-surface)',
+                      backgroundColor: "var(--brand-primary)",
+                      color: "var(--brand-surface)",
                     }}
                     className="px-2.5 py-0.5 rounded-md font-mono text-xs font-bold tracking-wider"
                   >
@@ -3566,7 +3786,7 @@ export default function AdminDashboard() {
                       type="text"
                       readOnly
                       value={productForm.categoryCode}
-                      style={{ backgroundColor: 'var(--brand-surface)' }}
+                      style={{ backgroundColor: "var(--brand-surface)" }}
                       className="w-full px-3 py-2 rounded-xl border border-current/15 font-mono text-xs font-bold uppercase opacity-80"
                     />
                   </div>
@@ -3591,11 +3811,11 @@ export default function AdminDashboard() {
                             ...productForm,
                             itemCode: e.target.value
                               .toUpperCase()
-                              .replace(/[^A-Z0-9]/g, '')
+                              .replace(/[^A-Z0-9]/g, "")
                               .slice(0, 5),
                           })
                         }
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="w-full px-3 py-2 rounded-xl border border-current/20 font-mono text-xs font-bold uppercase"
                       />
                       <button
@@ -3603,11 +3823,13 @@ export default function AdminDashboard() {
                         onClick={() =>
                           setProductForm({
                             ...productForm,
-                            itemCode: getUniqueItemSuffix(productForm.categoryCode),
+                            itemCode: getUniqueItemSuffix(
+                              productForm.categoryCode,
+                            ),
                           })
                         }
                         title="Generate new 4-digit item code"
-                        style={{ backgroundColor: 'var(--brand-surface)' }}
+                        style={{ backgroundColor: "var(--brand-surface)" }}
                         className="px-2.5 rounded-xl border border-current/20 cursor-pointer hover:opacity-80"
                       >
                         <RefreshCw size={14} />
@@ -3629,7 +3851,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setProductForm({ ...productForm, name: e.target.value })
                   }
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                 />
               </div>
@@ -3641,8 +3863,10 @@ export default function AdminDashboard() {
                   </label>
                   <select
                     value={productForm.category}
-                    onChange={(e) => handleProductCategoryChange(e.target.value)}
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    onChange={(e) =>
+                      handleProductCategoryChange(e.target.value)
+                    }
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                   >
                     {categories.map((cat) => (
@@ -3665,7 +3889,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setProductForm({ ...productForm, price: e.target.value })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                   />
                 </div>
@@ -3682,7 +3906,7 @@ export default function AdminDashboard() {
                         stockStatus: e.target.value as StockStatus,
                       })
                     }
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-sm"
                   >
                     <option value="In Stock">In Stock</option>
@@ -3701,9 +3925,12 @@ export default function AdminDashboard() {
                   required
                   value={productForm.description}
                   onChange={(e) =>
-                    setProductForm({ ...productForm, description: e.target.value })
+                    setProductForm({
+                      ...productForm,
+                      description: e.target.value,
+                    })
                   }
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm"
                 />
               </div>
@@ -3714,7 +3941,7 @@ export default function AdminDashboard() {
                     Product Images (URLs or Upload)
                   </label>
                   <label
-                    style={{ backgroundColor: 'var(--brand-secondary)' }}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                   >
                     <Upload size={13} />
@@ -3740,7 +3967,7 @@ export default function AdminDashboard() {
                           updated[idx] = e.target.value;
                           setProductForm({ ...productForm, images: updated });
                         }}
-                        style={{ backgroundColor: 'var(--brand-secondary)' }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="flex-1 px-3 py-2 rounded-xl border border-current/20 text-sm"
                       />
                       {productForm.images.length > 1 && (
@@ -3749,10 +3976,12 @@ export default function AdminDashboard() {
                           onClick={() =>
                             setProductForm({
                               ...productForm,
-                              images: productForm.images.filter((_, i) => i !== idx),
+                              images: productForm.images.filter(
+                                (_, i) => i !== idx,
+                              ),
                             })
                           }
-                          style={{ backgroundColor: 'var(--brand-secondary)' }}
+                          style={{ backgroundColor: "var(--brand-secondary)" }}
                           className="px-3 rounded-xl cursor-pointer"
                         >
                           <X size={14} />
@@ -3767,10 +3996,10 @@ export default function AdminDashboard() {
                   onClick={() =>
                     setProductForm({
                       ...productForm,
-                      images: [...productForm.images, ''],
+                      images: [...productForm.images, ""],
                     })
                   }
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                 >
                   + Add Another Image URL
@@ -3781,7 +4010,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  style={{ backgroundColor: 'var(--brand-secondary)' }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
                   className="px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Cancel
@@ -3789,12 +4018,12 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: 'var(--brand-primary)',
-                    color: 'var(--brand-surface)',
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
                   }}
                   className="px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
                 >
-                  {editingProduct ? 'Save Changes' : 'Add to Catalog'}
+                  {editingProduct ? "Save Changes" : "Add to Catalog"}
                 </button>
               </div>
             </form>
