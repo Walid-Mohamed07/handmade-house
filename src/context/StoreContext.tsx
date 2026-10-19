@@ -196,7 +196,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const res = await fetch(url, { ...options, headers });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || 'Request failed');
+      if (res.status === 413) {
+        throw new Error('Image or payload is too large for the server. Please compress or select a smaller image.');
+      }
+      throw new Error(data.error || `Request failed with status ${res.status}`);
     }
     return data;
   };

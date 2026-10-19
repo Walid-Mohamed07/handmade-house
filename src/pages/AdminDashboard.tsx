@@ -36,6 +36,7 @@ import {
   Calendar,
   Hash,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import {
   useStore,
@@ -173,6 +174,7 @@ export default function AdminDashboard() {
     null,
   );
   const [productFormError, setProductFormError] = useState<string>("");
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const [productForm, setProductForm] = useState<{
     name: string;
     category: string;
@@ -571,18 +573,112 @@ export default function AdminDashboard() {
     }));
   };
 
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
+  // Helper: Compress an image file using HTML5 Canvas to prevent 413 Payload Too Large on Vercel
+  const compressImageFile = (
+    file: File,
+    maxDimension = 1200,
+    initialQuality = 0.78
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        return reject(new Error("Selected file must be an image (JPEG, PNG, WebP)."));
+      }
+
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read image file."));
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Could not parse image data."));
+        img.onload = () => {
+          try {
+            let { width, height } = img;
+
+            // Preserve aspect ratio while constraining to maxDimension
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              return reject(
+                new Error("Unable to create canvas context for image processing.")
+              );
+            }
+
+            // Fill with white background to handle transparency safely when saving as JPEG
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            let quality = initialQuality;
+            let dataUrl = canvas.toDataURL("image/jpeg", quality);
+
+            // If still unusually large (> 1.2MB), adaptively reduce quality
+            let attempts = 0;
+            while (
+              dataUrl.length > 1.2 * 1024 * 1024 &&
+              attempts < 3 &&
+              quality > 0.45
+            ) {
+              quality -= 0.15;
+              dataUrl = canvas.toDataURL("image/jpeg", quality);
+              attempts++;
+            }
+
+            resolve(dataUrl);
+          } catch (err: any) {
+            reject(err);
+          }
+        };
+        img.src = String(e.target?.result || "");
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingImage(true);
+    setProductFormError("");
+
+    try {
+      const compressedList: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const compressed = await compressImageFile(file);
+        compressedList.push(compressed);
+      }
+
       setProductForm((prev) => {
         const cleaned = prev.images.filter((img) => img.trim() !== "");
-        return { ...prev, images: [...cleaned, dataUrl] };
+        return { ...prev, images: [...cleaned, ...compressedList] };
       });
-    };
-    reader.readAsDataURL(file);
+
+      showToast(
+        `Added & compressed ${files.length} image${files.length > 1 ? "s" : ""}`
+      );
+    } catch (err: any) {
+      setProductFormError(err.message || "Failed to process image file");
+      showToast(err.message || "Image upload failed");
+    } finally {
+      setIsUploadingImage(false);
+      // Reset input value so selecting the same file again triggers onChange
+      e.target.value = "";
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -615,6 +711,15 @@ export default function AdminDashboard() {
       description: productForm.description.trim(),
       images: validImages.length > 0 ? validImages : ["/logo.jpg"],
     };
+
+    // Protect against payloads that might exceed Vercel's 4.5MB serverless body limit
+    const approximateSize = JSON.stringify(payload).length;
+    if (approximateSize > 3.8 * 1024 * 1024) {
+      setProductFormError(
+        "Total images payload exceeds 3.8MB (Vercel server limit). Please remove extra images or upload smaller files."
+      );
+      return;
+    }
 
     try {
       if (editingProduct) {
@@ -3942,14 +4047,28 @@ export default function AdminDashboard() {
                   </label>
                   <label
                     style={{ backgroundColor: "var(--brand-secondary)" }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-opacity ${
+                      isUploadingImage
+                        ? "opacity-60 pointer-events-none"
+                        : "hover:opacity-90"
+                    }`}
                   >
-                    <Upload size={13} />
-                    <span>Upload Image File</span>
+                    {isUploadingImage ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Upload size={13} />
+                    )}
+                    <span>
+                      {isUploadingImage
+                        ? "Compressing & Uploading..."
+                        : "Upload Image File"}
+                    </span>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
+                      disabled={isUploadingImage}
                       onChange={handleImageFileUpload}
                     />
                   </label>
