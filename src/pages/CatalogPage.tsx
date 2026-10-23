@@ -633,7 +633,7 @@ export default function CatalogPage() {
 
               return (
                 <div>
-                  <div className="relative w-full aspect-16/10 max-h-[32vh] rounded-2xl overflow-hidden bg-black/5 mb-3">
+                  <div className="relative w-full aspect-16/10 max-h-full rounded-2xl overflow-hidden bg-black/5 mb-3">
                     <img
                       src={currentImg}
                       alt={activeProductModal.name}
