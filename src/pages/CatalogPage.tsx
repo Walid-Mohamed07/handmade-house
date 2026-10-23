@@ -602,7 +602,7 @@ export default function CatalogPage() {
 
       {activeProductModal && (
         <div
-          className="fixed inset-0 z-50 h-dvh overflow-hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          className="sticky inset-0 z-50 h-dvh overflow-hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
           onClick={() => setActiveProductModal(null)}
         >
           <div
