@@ -282,6 +282,19 @@ export default function AdminDashboard() {
     itemAnalyticsSort,
   ]);
 
+  // Two-step delete confirmation
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState<boolean>(false);
+  const askConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => Promise<void> | void,
+  ) => setConfirmDialog({ title, message, onConfirm });
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(""), 3400);
@@ -1577,8 +1590,14 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={async () => {
-                          await resetAnalyticsData();
-                          showToast("Reset visitor analytics counters");
+                          askConfirm(
+                            "Reset analytics?",
+                            "All visitor and contact analytics counters will be permanently deleted.",
+                            async () => {
+                              await resetAnalyticsData();
+                              showToast("Reset visitor analytics counters");
+                            },
+                          );
                         }}
                         style={{ backgroundColor: "var(--brand-secondary)" }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
@@ -1753,8 +1772,18 @@ export default function AdminDashboard() {
                           <button
                             type="button"
                             onClick={async () => {
-                              await deleteProduct(item.id);
-                              showToast(`Deleted "${item.name}"`);
+                              askConfirm(
+                                "Delete product?",
+                                `"${item.name}" (${item.code || "no code"}) will be permanently deleted.`,
+                                async () => {
+                                  try {
+                                    await deleteProduct(item.id);
+                                    showToast(`Deleted "${item.name}"`);
+                                  } catch (err: any) {
+                                    showToast(err.message);
+                                  }
+                                },
+                              );
                             }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F2E4E4] text-[#9E3B3B] text-xs font-semibold cursor-pointer"
                           >
@@ -1821,8 +1850,18 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               onClick={async () => {
-                                await deleteCategory(cat.id);
-                                showToast(`Removed category "${cat.name}"`);
+                                askConfirm(
+                                  "Delete category?",
+                                  `Category "${cat.name}" will be permanently removed.`,
+                                  async () => {
+                                    try {
+                                      await deleteCategory(cat.id);
+                                      showToast(`Removed category "${cat.name}"`);
+                                    } catch (err: any) {
+                                      showToast(err.message);
+                                    }
+                                  },
+                                );
                               }}
                               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#F2E4E4] text-[#9E3B3B] text-xs font-semibold cursor-pointer"
                             >
@@ -2243,12 +2282,18 @@ export default function AdminDashboard() {
                                   roleCounts.superadmin <= 1
                                 }
                                 onClick={async () => {
-                                  try {
-                                    await deleteUser(u.id);
-                                    showToast(`Deleted user "${u.name}"`);
-                                  } catch (err: any) {
-                                    showToast(err.message);
-                                  }
+                                  askConfirm(
+                                    "Delete user?",
+                                    `User "${u.name}" (${u.role}) will be permanently deleted.`,
+                                    async () => {
+                                      try {
+                                        await deleteUser(u.id);
+                                        showToast(`Deleted user "${u.name}"`);
+                                      } catch (err: any) {
+                                        showToast(err.message);
+                                      }
+                                    },
+                                  );
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F2E4E4] text-[#9E3B3B] text-xs font-semibold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                               >
@@ -4146,6 +4191,57 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => !confirmBusy && setConfirmDialog(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
+            }}
+            className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-2 text-[#9E3B3B]">
+              <AlertCircle size={20} />
+              <h3 className="font-heading text-lg font-bold">
+                {confirmDialog.title}
+              </h3>
+            </div>
+            <p className="text-sm opacity-80 mb-5">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={confirmBusy}
+                onClick={() => setConfirmDialog(null)}
+                style={{ backgroundColor: "var(--brand-secondary)" }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={confirmBusy}
+                onClick={async () => {
+                  setConfirmBusy(true);
+                  try {
+                    await confirmDialog.onConfirm();
+                  } finally {
+                    setConfirmBusy(false);
+                    setConfirmDialog(null);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#9E3B3B] text-white cursor-pointer disabled:opacity-60"
+              >
+                {confirmBusy ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -51,6 +51,16 @@ export default function CatalogPage() {
     useState<ProductItem | null>(null);
   const [modalImageIdx, setModalImageIdx] = useState<number>(0);
 
+  // Lock background page scroll while the product popup is open
+  useEffect(() => {
+    if (!activeProductModal) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [activeProductModal]);
+
   const itemsPerPage = Number(settings.itemsPerPage) || 6;
 
   useEffect(() => {
@@ -592,7 +602,7 @@ export default function CatalogPage() {
 
       {activeProductModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 h-dvh overflow-hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
           onClick={() => setActiveProductModal(null)}
         >
           <div
@@ -600,7 +610,7 @@ export default function CatalogPage() {
               backgroundColor: "var(--brand-surface)",
               color: "var(--brand-primary)",
             }}
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl relative"
+            className="w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl p-4 sm:p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -623,7 +633,7 @@ export default function CatalogPage() {
 
               return (
                 <div>
-                  <div className="relative w-full aspect-16/10 rounded-2xl overflow-hidden bg-black/5 mb-4">
+                  <div className="relative w-full aspect-16/10 max-h-[32vh] rounded-2xl overflow-hidden bg-black/5 mb-3">
                     <img
                       src={currentImg}
                       alt={activeProductModal.name}
@@ -694,7 +704,7 @@ export default function CatalogPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm sm:text-base opacity-80 leading-relaxed mb-6">
+                  <p className="text-sm sm:text-base opacity-80 leading-relaxed mb-4">
                     {activeProductModal.description}
                   </p>
 
