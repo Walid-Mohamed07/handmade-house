@@ -37,6 +37,13 @@ import {
   Hash,
   RefreshCw,
   Loader2,
+  Bell,
+  Phone,
+  Send,
+  Check,
+  Copy,
+  Clock,
+  Inbox,
 } from "lucide-react";
 import {
   useStore,
@@ -51,6 +58,9 @@ import {
   StockStatus,
   ThemeConfig,
   StoreSettings,
+  CustomRequestItem,
+  CustomRequestStatus,
+  NotificationItem,
 } from "../types.ts";
 
 const COLOR_PRESETS = [
@@ -119,6 +129,9 @@ export default function AdminDashboard() {
     products,
     categories,
     users,
+    customRequests,
+    notifications,
+    unreadNotificationsCount,
     settings,
     analytics,
     dbConnected,
@@ -131,6 +144,14 @@ export default function AdminDashboard() {
     addUser,
     updateUser,
     deleteUser,
+    fetchCustomRequests,
+    updateCustomRequest,
+    deleteCustomRequest,
+    fetchNotifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    deleteNotification,
+    clearAllNotifications,
     updateSettings,
     loginAdmin,
     logoutAdmin,
@@ -147,6 +168,32 @@ export default function AdminDashboard() {
   // Dashboard Active Tab
   const [activeTab, setActiveTab] = useState<string>("analytics");
   const [toastMsg, setToastMsg] = useState<string>("");
+
+  // Notifications Panel States
+  const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+
+  // Custom Item Requests Tab States
+  const [requestSearch, setRequestSearch] = useState<string>("");
+  const [requestStatusFilter, setRequestStatusFilter] = useState<
+    "All" | CustomRequestStatus
+  >("All");
+  const [requestPage, setRequestPage] = useState<number>(1);
+  const [requestsPerPage, setRequestsPerPage] = useState<number>(6);
+  const [highlightedRequestId, setHighlightedRequestId] = useState<
+    string | null
+  >(null);
+
+  // Feedback Composer Modal & Lightbox States for Custom Requests
+  const [feedbackModalRequest, setFeedbackModalRequest] =
+    useState<CustomRequestItem | null>(null);
+  const [feedbackText, setFeedbackText] = useState<string>("");
+  const [isSavingFeedback, setIsSavingFeedback] = useState<boolean>(false);
+  const [previewImageModal, setPreviewImageModal] = useState<{
+    images: string[];
+    index: number;
+    title: string;
+  } | null>(null);
 
   // "Show More" Deep-Dive Analytics Modal State
   // Values: null | 'activity_log' | 'contacted_visited' | 'social_clicks' | 'category_demand' | 'item_analytics'
@@ -281,6 +328,137 @@ export default function AdminDashboard() {
     itemAnalyticsStock,
     itemAnalyticsSort,
   ]);
+
+  useEffect(() => {
+    setRequestPage(1);
+  }, [requestSearch, requestStatusFilter, requestsPerPage]);
+
+  // Helper to format phone for WhatsApp (handles local numbers like 010... or international +...)
+  const formatRequesterPhoneForWhatsapp = (rawPhone: string): string => {
+    const digits = (rawPhone || "").replace(/[^\d]/g, "");
+    if (digits.startsWith("00")) return digits.slice(2);
+    // If local 11-digit Egyptian mobile starting with 01, prepend 2
+    if (digits.length === 11 && digits.startsWith("01")) {
+      return `2${digits}`;
+    }
+    return digits;
+  };
+
+  const getDefaultFeedbackMessage = (reqItem: CustomRequestItem): string => {
+    if (reqItem.adminFeedback && reqItem.adminFeedback.trim()) {
+      return reqItem.adminFeedback.trim();
+    }
+    return `Hello ${reqItem.name}! Thank you for your customized item request [${reqItem.requestCode}] at ${settings.brandName}. We have reviewed your request and would love to discuss the details with you!`;
+  };
+
+  const handleContactRequesterWhatsapp = async (
+    reqItem: CustomRequestItem,
+    customFeedback?: string,
+  ) => {
+    const msg =
+      customFeedback !== undefined && customFeedback.trim()
+        ? customFeedback.trim()
+        : getDefaultFeedbackMessage(reqItem);
+    const cleanPhone = formatRequesterPhoneForWhatsapp(reqItem.phone);
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+
+    if (reqItem.status === "Pending") {
+      try {
+        await updateCustomRequest(reqItem.id, {
+          status: "In Review",
+          ...(customFeedback ? { adminFeedback: customFeedback.trim() } : {}),
+        });
+      } catch {
+        // Ignore non-critical status update failure
+      }
+    }
+  };
+
+  const handleContactRequesterEmail = async (
+    reqItem: CustomRequestItem,
+    customFeedback?: string,
+  ) => {
+    if (!reqItem.email) {
+      showToast("This requester did not provide an email address.");
+      return;
+    }
+    const msg =
+      customFeedback !== undefined && customFeedback.trim()
+        ? customFeedback.trim()
+        : getDefaultFeedbackMessage(reqItem);
+    const subject = `Feedback on your Custom Item Request [${reqItem.requestCode}] — ${settings.brandName}`;
+    const mailtoUrl = `mailto:${reqItem.email}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(msg)}`;
+    window.location.href = mailtoUrl;
+
+    if (reqItem.status === "Pending") {
+      try {
+        await updateCustomRequest(reqItem.id, {
+          status: "In Review",
+          ...(customFeedback ? { adminFeedback: customFeedback.trim() } : {}),
+        });
+      } catch {
+        // Ignore
+      }
+    }
+  };
+
+  const openFeedbackComposer = (reqItem: CustomRequestItem) => {
+    setFeedbackModalRequest(reqItem);
+    setFeedbackText(getDefaultFeedbackMessage(reqItem));
+  };
+
+  const formatRelativeTime = (isoDate?: string): string => {
+    if (!isoDate) return "";
+    const diffMs = Date.now() - new Date(isoDate).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(isoDate).toLocaleDateString();
+  };
+
+  const filteredRequests = useMemo(() => {
+    return customRequests.filter((reqItem) => {
+      const matchesStatus =
+        requestStatusFilter === "All" || reqItem.status === requestStatusFilter;
+      const q = requestSearch.trim().toLowerCase();
+      const matchesQuery =
+        !q ||
+        (reqItem.requestCode || "").toLowerCase().includes(q) ||
+        reqItem.name.toLowerCase().includes(q) ||
+        reqItem.phone.toLowerCase().includes(q) ||
+        (reqItem.email || "").toLowerCase().includes(q) ||
+        (reqItem.comment || "").toLowerCase().includes(q);
+      return matchesStatus && matchesQuery;
+    });
+  }, [customRequests, requestStatusFilter, requestSearch]);
+
+  const totalRequestPages = Math.max(
+    1,
+    Math.ceil(filteredRequests.length / requestsPerPage),
+  );
+  const paginatedRequests = useMemo(() => {
+    const start = (requestPage - 1) * requestsPerPage;
+    return filteredRequests.slice(start, start + requestsPerPage);
+  }, [filteredRequests, requestPage, requestsPerPage]);
+
+  const pendingRequestsCount = useMemo(
+    () => customRequests.filter((r) => r.status === "Pending").length,
+    [customRequests],
+  );
+
+  const visibleNotifications = useMemo(() => {
+    if (notifFilter === "unread") {
+      return notifications.filter((n) => !n.read);
+    }
+    return notifications;
+  }, [notifications, notifFilter]);
 
   // Two-step delete confirmation
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -998,6 +1176,285 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Notification Bell & Dropdown Panel */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsNotifOpen((prev) => !prev)}
+              className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition-colors cursor-pointer"
+              title="Notifications Center"
+            >
+              <Bell size={15} />
+              <span className="hidden sm:inline">Notifications</span>
+              {unreadNotificationsCount > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 min-w-5 h-5 rounded-full bg-amber-400 text-[#23201E] text-[11px] font-extrabold inline-flex items-center justify-center animate-pulse">
+                  {unreadNotificationsCount > 99
+                    ? "99+"
+                    : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsNotifOpen(false)}
+                />
+                <div
+                  style={{
+                    backgroundColor: "var(--brand-surface)",
+                    color: "var(--brand-primary)",
+                    borderColor:
+                      "color-mix(in srgb, var(--brand-primary) 18%, transparent)",
+                  }}
+                  className="fixed sm:absolute right-3 sm:right-0 top-16 sm:top-full sm:mt-2 z-50 w-[calc(100vw-1.5rem)] sm:w-96 max-h-[78vh] rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-fade-up"
+                >
+                  <div
+                    style={{
+                      borderColor:
+                        "color-mix(in srgb, var(--brand-primary) 12%, transparent)",
+                    }}
+                    className="p-3.5 border-b flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bell size={16} />
+                      <h3 className="font-heading text-lg font-bold">
+                        Notifications
+                      </h3>
+                      {unreadNotificationsCount > 0 && (
+                        <span
+                          style={{
+                            backgroundColor: "var(--brand-primary)",
+                            color: "var(--brand-surface)",
+                          }}
+                          className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        >
+                          {unreadNotificationsCount} new
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetchNotifications();
+                          fetchCustomRequests();
+                          showToast("Refreshed notifications");
+                        }}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
+                        className="p-1.5 rounded-lg hover:opacity-80 cursor-pointer"
+                        title="Refresh notifications"
+                      >
+                        <RefreshCw size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsNotifOpen(false)}
+                        style={{ backgroundColor: "var(--brand-secondary)" }}
+                        className="p-1.5 rounded-lg hover:opacity-80 cursor-pointer"
+                        title="Close"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter & Bulk Actions Bar */}
+                  <div
+                    style={{
+                      backgroundColor: "var(--brand-secondary)",
+                      borderColor:
+                        "color-mix(in srgb, var(--brand-primary) 12%, transparent)",
+                    }}
+                    className="px-3.5 py-2 border-b flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setNotifFilter("all")}
+                        style={
+                          notifFilter === "all"
+                            ? {
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
+                              }
+                            : {}
+                        }
+                        className="px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                      >
+                        All ({notifications.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotifFilter("unread")}
+                        style={
+                          notifFilter === "unread"
+                            ? {
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
+                              }
+                            : {}
+                        }
+                        className="px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                      >
+                        Unread ({unreadNotificationsCount})
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {unreadNotificationsCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await markAllNotificationsRead();
+                            showToast("Marked all notifications as read");
+                          }}
+                          className="font-semibold underline hover:opacity-80 cursor-pointer"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            askConfirm(
+                              "Clear all notifications?",
+                              "All notifications in your inbox will be permanently deleted.",
+                              async () => {
+                                await clearAllNotifications();
+                                showToast("Cleared all notifications");
+                              },
+                            );
+                          }}
+                          className="font-semibold text-[#9E3B3B] hover:underline cursor-pointer"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Notification Items List */}
+                  <div className="overflow-y-auto divide-y divide-current/10 flex-1 max-h-96">
+                    {visibleNotifications.length === 0 ? (
+                      <div className="py-10 px-4 text-center opacity-70">
+                        <Bell size={28} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-sm font-semibold">
+                          No notifications to show
+                        </p>
+                        <p className="text-xs opacity-75 mt-0.5">
+                          New custom item requests and system alerts will appear
+                          here.
+                        </p>
+                      </div>
+                    ) : (
+                      visibleNotifications.map((notif: NotificationItem) => (
+                        <div
+                          key={notif.id}
+                          style={
+                            !notif.read
+                              ? {
+                                  backgroundColor:
+                                    "color-mix(in srgb, var(--brand-secondary) 65%, transparent)",
+                                }
+                              : {}
+                          }
+                          className="p-3.5 hover:bg-black/5 transition-colors flex items-start gap-3"
+                        >
+                          <div
+                            style={{
+                              backgroundColor:
+                                notif.type === "custom_request"
+                                  ? "var(--brand-accent)"
+                                  : "var(--brand-primary)",
+                              color: "#FFFFFF",
+                            }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                          >
+                            {notif.type === "custom_request" ? (
+                              <Sparkles size={14} />
+                            ) : (
+                              <Bell size={14} />
+                            )}
+                          </div>
+
+                          <div
+                            onClick={async () => {
+                              if (!notif.read) {
+                                await markNotificationRead(notif.id, true);
+                              }
+                              if (notif.linkTab) {
+                                setActiveTab(notif.linkTab);
+                                if (notif.entityId) {
+                                  setHighlightedRequestId(notif.entityId);
+                                }
+                                setIsNotifOpen(false);
+                              }
+                            }}
+                            className="flex-1 min-w-0 cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-bold truncate flex items-center gap-1.5">
+                                {!notif.read && (
+                                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                                )}
+                                <span>{notif.title}</span>
+                              </p>
+                              <span className="text-[10px] opacity-60 whitespace-nowrap">
+                                {formatRelativeTime(notif.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-xs opacity-80 mt-0.5 leading-snug">
+                              {notif.message}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                markNotificationRead(notif.id, !notif.read)
+                              }
+                              style={{
+                                backgroundColor: "var(--brand-secondary)",
+                              }}
+                              className="p-1.5 rounded-lg hover:opacity-80 cursor-pointer"
+                              title={
+                                notif.read ? "Mark as unread" : "Mark as read"
+                              }
+                            >
+                              <Check size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                askConfirm(
+                                  "Delete notification?",
+                                  `Notification "${notif.title}" will be permanently deleted.`,
+                                  async () => {
+                                    await deleteNotification(notif.id);
+                                    showToast("Notification deleted");
+                                  },
+                                )
+                              }
+                              className="p-1.5 rounded-lg bg-[#F2E4E4] text-[#9E3B3B] hover:opacity-80 cursor-pointer"
+                              title="Delete notification"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => navigate("/")}
@@ -1051,6 +1508,12 @@ export default function AdminDashboard() {
             label: `Categories (${categories.length})`,
             icon: Tags,
           },
+          {
+            id: "requests",
+            label: `Requests (${customRequests.length})`,
+            icon: Inbox,
+            badge: pendingRequestsCount,
+          },
           { id: "users", label: `Users (${users.length})`, icon: Users },
           { id: "theme", label: "Theme & Typography", icon: Palette },
           { id: "settings", label: "Social Links & Security", icon: Settings },
@@ -1073,6 +1536,11 @@ export default function AdminDashboard() {
             >
               <Icon size={16} />
               <span>{tab.label}</span>
+              {"badge" in tab && Number(tab.badge) > 0 && (
+                <span className="px-1.5 py-0.2 min-w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold inline-flex items-center justify-center">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -3080,6 +3548,519 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* =================================================================
+            TAB: CUSTOMIZED ITEM REQUESTS MANAGEMENT
+            ================================================================= */}
+        {activeTab === "requests" && (
+          <div className="space-y-6 animate-fade-up">
+            {/* Summary KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  label: "Total Custom Requests",
+                  value: customRequests.length,
+                  sub: "All submitted bespoke inquiries",
+                },
+                {
+                  label: "Pending Review",
+                  value: customRequests.filter((r) => r.status === "Pending")
+                    .length,
+                  sub: "Awaiting artisan feedback",
+                },
+                {
+                  label: "In Review / Contacted",
+                  value: customRequests.filter((r) => r.status === "In Review")
+                    .length,
+                  sub: "Feedback or discussion active",
+                },
+                {
+                  label: "Completed",
+                  value: customRequests.filter((r) => r.status === "Completed")
+                    .length,
+                  sub: "Fulfilled custom orders",
+                },
+              ].map((stat, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    backgroundColor: "var(--brand-surface)",
+                    borderColor:
+                      "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
+                  }}
+                  className="rounded-2xl border p-4 sm:p-5 shadow-xs"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider opacity-70">
+                    {stat.label}
+                  </p>
+                  <p className="font-heading text-3xl sm:text-4xl font-bold mt-1">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs opacity-65 mt-1">{stat.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div
+              style={{
+                backgroundColor: "var(--brand-surface)",
+                borderColor:
+                  "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
+              }}
+              className="rounded-2xl border p-4 sm:p-5 shadow-xs space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-heading text-2xl font-bold">
+                    Customized Item Requests ({filteredRequests.length})
+                  </h2>
+                  <p className="text-xs sm:text-sm opacity-75">
+                    Review customer reference photos, notes, and send feedback
+                    directly via WhatsApp or Email.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchCustomRequests();
+                    fetchNotifications();
+                    showToast("Refreshed custom item requests");
+                  }}
+                  style={{ backgroundColor: "var(--brand-secondary)" }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw size={14} />
+                  <span>Refresh List</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="relative md:col-span-7 flex items-center">
+                  <Search
+                    size={16}
+                    className="absolute left-3.5 opacity-60 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search by code (REQ-...), requester name, phone, email, or comment..."
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
+                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-current/20 text-xs sm:text-sm outline-none"
+                  />
+                  {requestSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setRequestSearch("")}
+                      className="absolute right-2.5 opacity-60 hover:opacity-100 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="md:col-span-3">
+                  <select
+                    value={requestStatusFilter}
+                    onChange={(e) =>
+                      setRequestStatusFilter(
+                        e.target.value as "All" | CustomRequestStatus,
+                      )
+                    }
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-xs sm:text-sm font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In Review">In Review</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Archived">Archived</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <select
+                    value={requestsPerPage}
+                    onChange={(e) =>
+                      setRequestsPerPage(Number(e.target.value) || 6)
+                    }
+                    style={{ backgroundColor: "var(--brand-secondary)" }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-current/20 text-xs sm:text-sm font-semibold outline-none cursor-pointer"
+                  >
+                    <option value={6}>6 / page</option>
+                    <option value={12}>12 / page</option>
+                    <option value={24}>24 / page</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Requests List */}
+            {paginatedRequests.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: "var(--brand-surface)",
+                  borderColor:
+                    "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
+                }}
+                className="rounded-2xl border p-12 text-center shadow-xs"
+              >
+                <Inbox size={36} className="mx-auto mb-3 opacity-45" />
+                <h3 className="font-heading text-2xl font-bold mb-1">
+                  No custom item requests found
+                </h3>
+                <p className="text-xs sm:text-sm opacity-75">
+                  When customers click "Request customized item" in the catalog,
+                  their submissions will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedRequests.map((reqItem) => {
+                  const isHighlighted = highlightedRequestId === reqItem.id;
+                  const statusBadgeClass =
+                    reqItem.status === "Completed"
+                      ? "bg-[#E3EFE8] text-[#286646]"
+                      : reqItem.status === "In Review"
+                        ? "bg-blue-500/15 text-blue-900"
+                        : reqItem.status === "Archived"
+                          ? "bg-black/10 text-current opacity-70"
+                          : "bg-amber-500/20 text-amber-900";
+
+                  return (
+                    <div
+                      key={reqItem.id}
+                      style={{
+                        backgroundColor: "var(--brand-surface)",
+                        borderColor: isHighlighted
+                          ? "var(--brand-accent)"
+                          : "color-mix(in srgb, var(--brand-primary) 15%, transparent)",
+                      }}
+                      className={`rounded-2xl border p-5 shadow-xs transition-all ${
+                        isHighlighted ? "ring-2 ring-emerald-600/40" : ""
+                      }`}
+                    >
+                      {/* Top Header Row: Request Code, Timestamp, Status Selector & Delete */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-4 border-b border-current/10">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span
+                            style={{
+                              backgroundColor: "var(--brand-primary)",
+                              color: "var(--brand-surface)",
+                            }}
+                            className="px-3 py-1 rounded-lg text-xs font-mono font-bold tracking-wider"
+                          >
+                            {reqItem.requestCode}
+                          </span>
+
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeClass}`}
+                          >
+                            {reqItem.status}
+                          </span>
+
+                          <span className="inline-flex items-center gap-1 text-xs opacity-65">
+                            <Clock size={12} />
+                            {reqItem.createdAt
+                              ? new Date(reqItem.createdAt).toLocaleString()
+                              : "Just now"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            value={reqItem.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target
+                                .value as CustomRequestStatus;
+                              try {
+                                await updateCustomRequest(reqItem.id, {
+                                  status: newStatus,
+                                });
+                                showToast(
+                                  `Updated [${reqItem.requestCode}] status to "${newStatus}"`,
+                                );
+                              } catch (err: any) {
+                                showToast(err.message);
+                              }
+                            }}
+                            style={{ backgroundColor: "var(--brand-secondary)" }}
+                            className="px-3 py-1.5 rounded-xl border border-current/20 text-xs font-semibold cursor-pointer"
+                            aria-label="Update request status"
+                          >
+                            <option value="Pending">Status: Pending</option>
+                            <option value="In Review">Status: In Review</option>
+                            <option value="Completed">Status: Completed</option>
+                            <option value="Archived">Status: Archived</option>
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              askConfirm(
+                                "Delete custom request?",
+                                `Request [${reqItem.requestCode}] from "${reqItem.name}" will be permanently deleted.`,
+                                async () => {
+                                  try {
+                                    await deleteCustomRequest(reqItem.id);
+                                    showToast(
+                                      `Deleted request [${reqItem.requestCode}]`,
+                                    );
+                                  } catch (err: any) {
+                                    showToast(err.message);
+                                  }
+                                },
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#F2E4E4] text-[#9E3B3B] text-xs font-semibold cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Body Grid: Contact Info + Comment + Images + Quick Feedback Actions */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                        {/* Left Column: Requester Contact & Comment */}
+                        <div className="lg:col-span-7 space-y-3">
+                          <div
+                            style={{ backgroundColor: "var(--brand-secondary)" }}
+                            className="rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs"
+                          >
+                            <div>
+                              <span className="block uppercase tracking-wider opacity-60 font-semibold mb-0.5">
+                                Requester Name
+                              </span>
+                              <span className="font-bold text-sm">
+                                {reqItem.name}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="block uppercase tracking-wider opacity-60 font-semibold mb-0.5">
+                                Phone Number
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sm font-mono">
+                                  {reqItem.phone}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(reqItem.phone);
+                                    showToast("Copied phone number");
+                                  }}
+                                  className="p-1 rounded hover:bg-black/10 cursor-pointer"
+                                  title="Copy phone"
+                                >
+                                  <Copy size={12} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="block uppercase tracking-wider opacity-60 font-semibold mb-0.5">
+                                Email Address
+                              </span>
+                              {reqItem.email ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold truncate">
+                                    {reqItem.email}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(
+                                        reqItem.email || "",
+                                      );
+                                      showToast("Copied email address");
+                                    }}
+                                    className="p-1 rounded hover:bg-black/10 cursor-pointer shrink-0"
+                                    title="Copy email"
+                                  >
+                                    <Copy size={12} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="opacity-50 italic">
+                                  Not provided
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">
+                              Customer Comment / Specification
+                            </p>
+                            {reqItem.comment ? (
+                              <p
+                                style={{
+                                  backgroundColor: "var(--brand-secondary)",
+                                }}
+                                className="p-3.5 rounded-xl text-xs sm:text-sm leading-relaxed whitespace-pre-wrap"
+                              >
+                                {reqItem.comment}
+                              </p>
+                            ) : (
+                              <p className="text-xs italic opacity-60">
+                                No additional comment provided.
+                              </p>
+                            )}
+                          </div>
+
+                          {reqItem.adminFeedback && (
+                            <div className="rounded-xl border border-emerald-700/25 bg-[#E3EFE8]/50 p-3 text-xs">
+                              <span className="font-bold uppercase tracking-wider text-[#246A46] block mb-0.5">
+                                Saved Admin Feedback Note:
+                              </span>
+                              <p className="opacity-90 whitespace-pre-wrap">
+                                {reqItem.adminFeedback}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Direct Contact & Feedback Action Buttons */}
+                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleContactRequesterWhatsapp(reqItem)
+                              }
+                              style={{
+                                backgroundColor: "var(--brand-accent)",
+                                color: "#FFFFFF",
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs hover:opacity-95 cursor-pointer"
+                            >
+                              <MessageCircle size={15} />
+                              <span>Contact via WhatsApp</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={!reqItem.email}
+                              onClick={() =>
+                                handleContactRequesterEmail(reqItem)
+                              }
+                              style={{
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-surface)",
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs hover:opacity-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={
+                                reqItem.email
+                                  ? `Send email to ${reqItem.email}`
+                                  : "Requester did not provide an email"
+                              }
+                            >
+                              <Mail size={15} />
+                              <span>Contact via Email</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openFeedbackComposer(reqItem)}
+                              style={{
+                                backgroundColor: "var(--brand-secondary)",
+                                borderColor:
+                                  "color-mix(in srgb, var(--brand-primary) 22%, transparent)",
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-semibold hover:opacity-90 cursor-pointer"
+                            >
+                              <Send size={14} />
+                              <span>Write Custom Feedback & Send</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Right Column: Attached Reference Photos */}
+                        <div className="lg:col-span-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-2">
+                            Attached Reference Photos (
+                            {reqItem.images?.length || 0})
+                          </p>
+                          {!reqItem.images || reqItem.images.length === 0 ? (
+                            <div
+                              style={{
+                                backgroundColor: "var(--brand-secondary)",
+                              }}
+                              className="rounded-xl p-6 text-center text-xs opacity-60"
+                            >
+                              No reference photos attached to this request.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-2.5">
+                              {reqItem.images.map((imgUrl, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewImageModal({
+                                      images: reqItem.images,
+                                      index: idx,
+                                      title: `${reqItem.requestCode} — ${reqItem.name}`,
+                                    })
+                                  }
+                                  className="group relative aspect-square rounded-xl overflow-hidden border border-current/15 bg-black/5 cursor-pointer"
+                                  title="Click to view full size"
+                                >
+                                  <img
+                                    src={imgUrl}
+                                    alt={`${reqItem.requestCode} photo ${idx + 1}`}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                                    <Maximize2
+                                      size={16}
+                                      className="text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                    />
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Requests Pagination */}
+            {totalRequestPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={requestPage === 1}
+                  onClick={() => setRequestPage((p) => Math.max(1, p - 1))}
+                  style={{ backgroundColor: "var(--brand-surface)" }}
+                  className="w-9 h-9 rounded-xl border border-current/20 flex items-center justify-center disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs font-semibold px-3">
+                  Page {requestPage} of {totalRequestPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={requestPage === totalRequestPages}
+                  onClick={() =>
+                    setRequestPage((p) => Math.min(totalRequestPages, p + 1))
+                  }
+                  style={{ backgroundColor: "var(--brand-surface)" }}
+                  className="w-9 h-9 rounded-xl border border-current/20 flex items-center justify-center disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* =====================================================================
@@ -4121,7 +5102,31 @@ export default function AdminDashboard() {
 
                 <div className="space-y-2">
                   {productForm.images.map((imgUrl, idx) => (
-                    <div key={idx} className="flex gap-2">
+                    <div key={idx} className="flex items-center gap-2">
+                      {imgUrl.trim() && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewImageModal({
+                              images: [imgUrl.trim()],
+                              index: 0,
+                              title: `Product image ${idx + 1}`,
+                            })
+                          }
+                          className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden border border-current/15 bg-black/5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                          aria-label={`View product image ${idx + 1} full size`}
+                          title="Click to view full size"
+                        >
+                          <img
+                            src={imgUrl.trim()}
+                            alt={`Product image ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white">
+                            <Maximize2 size={14} />
+                          </span>
+                        </button>
+                      )}
                       <input
                         type="text"
                         placeholder="https://images.unsplash.com/..."
@@ -4191,6 +5196,193 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Feedback Composer Modal (Send via WhatsApp or Email) */}
+      {feedbackModalRequest && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => !isSavingFeedback && setFeedbackModalRequest(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
+            }}
+            className="w-full max-w-lg rounded-3xl p-6 shadow-2xl relative animate-fade-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setFeedbackModalRequest(null)}
+              style={{ backgroundColor: "var(--brand-secondary)" }}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h3 className="font-heading text-2xl font-bold mb-1">
+              Send Feedback to {feedbackModalRequest.name}
+            </h3>
+            <p className="text-xs opacity-75 mb-4">
+              Request{" "}
+              <strong className="font-mono">
+                {feedbackModalRequest.requestCode}
+              </strong>{" "}
+              • Phone: {feedbackModalRequest.phone}
+              {feedbackModalRequest.email
+                ? ` • Email: ${feedbackModalRequest.email}`
+                : ""}
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
+                Your Feedback Message
+              </label>
+              <textarea
+                rows={4}
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Write your personalized feedback, pricing estimate, or crafting timeframe..."
+                style={{ backgroundColor: "var(--brand-secondary)" }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-current/20 text-sm outline-none"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isSavingFeedback}
+                onClick={async () => {
+                  setIsSavingFeedback(true);
+                  try {
+                    await updateCustomRequest(feedbackModalRequest.id, {
+                      adminFeedback: feedbackText,
+                    });
+                    showToast("Saved feedback note to request");
+                    setFeedbackModalRequest(null);
+                  } catch (err: any) {
+                    showToast(err.message);
+                  } finally {
+                    setIsSavingFeedback(false);
+                  }
+                }}
+                style={{ backgroundColor: "var(--brand-secondary)" }}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Save Note Only
+              </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isSavingFeedback}
+                  onClick={async () => {
+                    await handleContactRequesterWhatsapp(
+                      feedbackModalRequest,
+                      feedbackText,
+                    );
+                    setFeedbackModalRequest(null);
+                  }}
+                  style={{
+                    backgroundColor: "var(--brand-accent)",
+                    color: "#FFFFFF",
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer shadow-xs"
+                >
+                  <MessageCircle size={14} />
+                  <span>Send via WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!feedbackModalRequest.email || isSavingFeedback}
+                  onClick={async () => {
+                    await handleContactRequesterEmail(
+                      feedbackModalRequest,
+                      feedbackText,
+                    );
+                    setFeedbackModalRequest(null);
+                  }}
+                  style={{
+                    backgroundColor: "var(--brand-primary)",
+                    color: "var(--brand-surface)",
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Mail size={14} />
+                  <span>Send via Email</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product and request image lightbox modal */}
+      {previewImageModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setPreviewImageModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-primary)",
+            }}
+            className="w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl p-4 sm:p-5 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="font-heading text-lg font-bold truncate">
+                {previewImageModal.title} (Photo {previewImageModal.index + 1}{" "}
+                of {previewImageModal.images.length})
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPreviewImageModal(null)}
+                style={{ backgroundColor: "var(--brand-secondary)" }}
+                className="w-11 h-11 rounded-full flex items-center justify-center cursor-pointer"
+                aria-label="Close image preview"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="relative w-full aspect-16/10 max-h-[62vh] rounded-2xl overflow-hidden bg-black/10 flex items-center justify-center">
+              <img
+                src={previewImageModal.images[previewImageModal.index]}
+                alt={`${previewImageModal.title} full size`}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+
+            {previewImageModal.images.length > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-3">
+                {previewImageModal.images.map((img, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() =>
+                      setPreviewImageModal({ ...previewImageModal, index: i })
+                    }
+                    className={`w-14 h-11 rounded-lg overflow-hidden border-2 cursor-pointer ${
+                      i === previewImageModal.index
+                        ? "border-current opacity-100"
+                        : "border-transparent opacity-55"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

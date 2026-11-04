@@ -95,3 +95,45 @@ export interface AnalyticsData {
   socialClicks: SocialClicks;
   recentEvents: AnalyticsEvent[];
 }
+
+export type CustomRequestStatus =
+  | 'Pending'
+  | 'In Review'
+  | 'Completed'
+  | 'Archived';
+
+export interface CustomRequestItem {
+  id: string;
+  _id?: string;
+  requestCode: string; // e.g. "REQ-4829"
+  name: string;
+  phone: string;
+  email?: string;
+  comment?: string;
+  images: string[];
+  status: CustomRequestStatus;
+  adminFeedback?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type NotificationType =
+  | 'custom_request'
+  | 'system'
+  | 'product'
+  | 'user'
+  | string;
+
+export interface NotificationItem {
+  id: string;
+  _id?: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  linkTab?: string;
+  entityId?: string;
+  metadata?: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
+}

@@ -3,6 +3,11 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export type UserRole = 'superadmin' | 'admin' | 'operator' | 'customer';
 export type UserStatus = 'Active' | 'Inactive';
 export type StockStatus = 'In Stock' | 'Made to Order' | 'Sold Out';
+export type CustomRequestStatus =
+  | 'Pending'
+  | 'In Review'
+  | 'Completed'
+  | 'Archived';
 
 export interface IProduct extends Document {
   code: string; // e.g., "CERM-1042" (unique combination)
@@ -76,6 +81,31 @@ export interface IUser extends Document {
   role: UserRole;
   status: UserStatus;
   passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ICustomRequest extends Document {
+  requestCode: string;
+  name: string;
+  phone: string;
+  email: string;
+  comment: string;
+  images: string[];
+  status: CustomRequestStatus;
+  adminFeedback: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface INotification extends Document {
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  linkTab: string;
+  entityId: string;
+  metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -203,3 +233,48 @@ export const Analytics: Model<IAnalytics> =
   mongoose.models.Analytics || mongoose.model<IAnalytics>('Analytics', analyticsSchema);
 export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>('User', userSchema);
+
+const customRequestSchema = new Schema<ICustomRequest>(
+  {
+    requestCode: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+    },
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    email: { type: String, default: '', trim: true, lowercase: true },
+    comment: { type: String, default: '', trim: true },
+    images: { type: [String], default: [] },
+    status: {
+      type: String,
+      enum: ['Pending', 'In Review', 'Completed', 'Archived'],
+      default: 'Pending',
+    },
+    adminFeedback: { type: String, default: '', trim: true },
+  },
+  { timestamps: true }
+);
+
+const notificationSchema = new Schema<INotification>(
+  {
+    type: { type: String, required: true, default: 'system', trim: true },
+    title: { type: String, required: true, trim: true },
+    message: { type: String, required: true, trim: true },
+    read: { type: Boolean, default: false },
+    linkTab: { type: String, default: '', trim: true },
+    entityId: { type: String, default: '', trim: true },
+    metadata: { type: Schema.Types.Mixed, default: {} },
+  },
+  { timestamps: true }
+);
+
+export const CustomRequest: Model<ICustomRequest> =
+  mongoose.models.CustomRequest ||
+  mongoose.model<ICustomRequest>('CustomRequest', customRequestSchema);
+
+export const Notification: Model<INotification> =
+  mongoose.models.Notification ||
+  mongoose.model<INotification>('Notification', notificationSchema);

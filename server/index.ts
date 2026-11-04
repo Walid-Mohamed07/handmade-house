@@ -13,6 +13,8 @@ import {
   Analytics,
   User,
   UserRole,
+  CustomRequest,
+  Notification,
 } from './models.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1006,6 +1008,290 @@ app.post(
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// ============================================================================
+// REUSABLE NOTIFICATION HELPER & NOTIFICATION ENDPOINTS (/api/notifications)
+// ============================================================================
+
+export async function createSystemNotification(params: {
+  type: string;
+  title: string;
+  message: string;
+  linkTab?: string;
+  entityId?: string;
+  metadata?: Record<string, any>;
+}) {
+  try {
+    const created = await Notification.create({
+      type: params.type || 'system',
+      title: params.title,
+      message: params.message,
+      read: false,
+      linkTab: params.linkTab || '',
+      entityId: params.entityId || '',
+      metadata: params.metadata || {},
+    });
+
+    // Keep at most 200 recent notifications to keep collection lightweight
+    const totalCount = await Notification.countDocuments();
+    if (totalCount > 200) {
+      const oldest = await Notification.find()
+        .sort({ createdAt: -1 })
+        .skip(200)
+        .select('_id');
+      if (oldest.length > 0) {
+        await Notification.deleteMany({
+          _id: { $in: oldest.map((d) => d._id) },
+        });
+      }
+    }
+
+    return formatDoc(created);
+  } catch (err: any) {
+    console.error('[Notification Error]:', err.message);
+    return null;
+  }
+}
+
+app.get(
+  '/api/notifications',
+  requireStaffAuth,
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      const list = await Notification.find().sort({ createdAt: -1 }).limit(150);
+      res.json(list.map(formatDoc));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+app.post(
+  '/api/notifications',
+  requireStaffAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { type, title, message, linkTab, entityId, metadata } = req.body;
+      if (!title || !message) {
+        return res
+          .status(400)
+          .json({ error: 'Notification title and message are required.' });
+      }
+      const created = await createSystemNotification({
+        type: type || 'system',
+        title: String(title).trim(),
+        message: String(message).trim(),
+        linkTab: linkTab ? String(linkTab) : '',
+        entityId: entityId ? String(entityId) : '',
+        metadata: metadata || {},
+      });
+      res.status(201).json(created);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+app.put(
+  '/api/notifications/read-all',
+  requireStaffAuth,
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      await Notification.updateMany({ read: false }, { $set: { read: true } });
+      const list = await Notification.find().sort({ createdAt: -1 }).limit(150);
+      res.json(list.map(formatDoc));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+app.put(
+  '/api/notifications/:id/read',
+  requireStaffAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const readVal = req.body?.read !== undefined ? Boolean(req.body.read) : true;
+      const updated = await Notification.findByIdAndUpdate(
+        req.params.id,
+        { $set: { read: readVal } },
+        { new: true }
+      );
+      if (!updated) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+      res.json(formatDoc(updated));
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+app.delete(
+  '/api/notifications/:id',
+  requireStaffAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      await Notification.findByIdAndDelete(req.params.id);
+      res.json({ deleted: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+app.delete(
+  '/api/notifications',
+  requireStaffAuth,
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      await Notification.deleteMany({});
+      res.json({ cleared: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// ============================================================================
+// CUSTOMIZED ITEM REQUESTS ENDPOINTS (/api/requests)
+// ============================================================================
+
+// Public endpoint: Visitors submit a custom item request from /catalog
+app.post('/api/requests', async (req: Request, res: Response) => {
+  try {
+    const { name, phone, email, comment, images } = req.body;
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'Your name is required.' });
+    }
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ error: 'Your phone number is required.' });
+    }
+
+    // Generate unique requestCode e.g. REQ-4821
+    let suffix = generateShortItemSuffix();
+    let requestCode = `REQ-${suffix}`;
+    let attempts = 0;
+    while ((await CustomRequest.findOne({ requestCode })) && attempts < 25) {
+      suffix = generateShortItemSuffix();
+      requestCode = `REQ-${suffix}`;
+      attempts++;
+    }
+
+    const validImages = Array.isArray(images)
+      ? images.map((img: any) => String(img).trim()).filter(Boolean)
+      : [];
+
+    const created = await CustomRequest.create({
+      requestCode,
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      email: email ? String(email).trim().toLowerCase() : '',
+      comment: comment ? String(comment).trim() : '',
+      images: validImages,
+      status: 'Pending',
+      adminFeedback: '',
+    });
+
+    // Wire with Notification System
+    const imgCount = validImages.length;
+    await createSystemNotification({
+      type: 'custom_request',
+      title: `New Custom Request [${requestCode}]`,
+      message: `${created.name} (${created.phone}) submitted a customized item request${
+        imgCount > 0 ? ` with ${imgCount} attached photo${imgCount > 1 ? 's' : ''}` : ''
+      }.`,
+      linkTab: 'requests',
+      entityId: String(created._id),
+      metadata: {
+        requestCode,
+        name: created.name,
+        phone: created.phone,
+        email: created.email,
+        imagesCount: imgCount,
+      },
+    });
+
+    // Also record in Visitor Activity Log for unified analytics visibility
+    try {
+      let analytics = await Analytics.findOne({ key: 'global' });
+      if (!analytics) {
+        analytics = await Analytics.create({ key: 'global' });
+      }
+      analytics.recentEvents.unshift({
+        type: 'custom_request',
+        label: `Visitor "${created.name}" submitted Custom Item Request [${requestCode}]`,
+        itemCode: requestCode,
+        timestamp: new Date(),
+      });
+      if (analytics.recentEvents.length > 500) {
+        analytics.recentEvents = analytics.recentEvents.slice(0, 500);
+      }
+      await analytics.save();
+    } catch {
+      // Non-blocking analytics log
+    }
+
+    res.status(201).json(formatDoc(created));
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Staff endpoint: List all custom item requests
+app.get(
+  '/api/requests',
+  requireStaffAuth,
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      const list = await CustomRequest.find().sort({ createdAt: -1 });
+      res.json(list.map(formatDoc));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// Staff endpoint: Update request status or admin feedback
+app.put(
+  '/api/requests/:id',
+  requireStaffAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { status, adminFeedback } = req.body;
+      const updateFields: Record<string, any> = {};
+      if (status !== undefined) updateFields.status = status;
+      if (adminFeedback !== undefined)
+        updateFields.adminFeedback = String(adminFeedback).trim();
+
+      const updated = await CustomRequest.findByIdAndUpdate(
+        req.params.id,
+        { $set: updateFields },
+        { new: true }
+      );
+      if (!updated) {
+        return res.status(404).json({ error: 'Custom request not found.' });
+      }
+      res.json(formatDoc(updated));
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// Staff endpoint: Delete a custom request
+app.delete(
+  '/api/requests/:id',
+  requireStaffAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      await CustomRequest.findByIdAndDelete(req.params.id);
+      res.json({ deleted: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
     }
   }
 );

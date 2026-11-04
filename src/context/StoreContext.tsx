@@ -6,6 +6,8 @@ import {
   AnalyticsData,
   UserItem,
   ThemeConfig,
+  CustomRequestItem,
+  NotificationItem,
 } from '../types.ts';
 
 export const DEFAULT_THEME: ThemeConfig = {
@@ -102,6 +104,9 @@ interface StoreContextValue {
   products: ProductItem[];
   categories: CategoryItem[];
   users: UserItem[];
+  customRequests: CustomRequestItem[];
+  notifications: NotificationItem[];
+  unreadNotificationsCount: number;
   settings: StoreSettings;
   analytics: AnalyticsData;
   dbConnected: boolean;
@@ -124,6 +129,27 @@ interface StoreContextValue {
     updatedFields: Partial<UserItem> & { password?: string }
   ) => Promise<UserItem>;
   deleteUser: (id: string) => Promise<void>;
+  submitCustomRequest: (payload: {
+    name: string;
+    phone: string;
+    email?: string;
+    comment?: string;
+    images?: string[];
+  }) => Promise<CustomRequestItem>;
+  fetchCustomRequests: () => Promise<void>;
+  updateCustomRequest: (
+    id: string,
+    updatedFields: Partial<CustomRequestItem>
+  ) => Promise<CustomRequestItem>;
+  deleteCustomRequest: (id: string) => Promise<void>;
+  fetchNotifications: () => Promise<void>;
+  createNotification: (
+    payload: Partial<NotificationItem>
+  ) => Promise<NotificationItem>;
+  markNotificationRead: (id: string, read?: boolean) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<StoreSettings>;
   loginAdmin: (
     email: string,
@@ -147,6 +173,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [customRequests, setCustomRequests] = useState<CustomRequestItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [settings, setSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
   const [analytics, setAnalytics] = useState<AnalyticsData>(INITIAL_ANALYTICS);
   const [dbConnected, setDbConnected] = useState<boolean>(false);
@@ -239,6 +267,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const fetchCustomRequests = async () => {
+    if (!adminToken) return;
+    try {
+      const list = await authFetch('/api/requests');
+      if (Array.isArray(list)) {
+        setCustomRequests(list);
+      }
+    } catch (err) {
+      console.error('Fetch custom requests error:', err);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    if (!adminToken) return;
+    try {
+      const list = await authFetch('/api/notifications');
+      if (Array.isArray(list)) {
+        setNotifications(list);
+      }
+    } catch (err) {
+      console.error('Fetch notifications error:', err);
+    }
+  };
+
   useEffect(() => {
     fetchBootstrapData();
   }, []);
@@ -248,6 +300,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!adminToken) {
         setAdminUser(null);
         setUsers([]);
+        setCustomRequests([]);
+        setNotifications([]);
         return;
       }
       try {
@@ -258,6 +312,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const data = await res.json();
           setAdminUser(data.admin);
           fetchUsers();
+          fetchCustomRequests();
+          fetchNotifications();
         } else {
           localStorage.removeItem(TOKEN_STORAGE_KEY);
           setAdminToken(null);
@@ -269,6 +325,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     verifySession();
   }, [adminToken]);
+
+  // Poll notifications & custom requests while admin is signed in
+  useEffect(() => {
+    if (!adminToken || !adminUser) return;
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchCustomRequests();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [adminToken, adminUser]);
 
   const postAnalyticsEvent = async (payload: Record<string, any>) => {
     if (adminUser) return;
@@ -370,6 +436,97 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
+  // Custom Item Requests
+  const submitCustomRequest = async (payload: {
+    name: string;
+    phone: string;
+    email?: string;
+    comment?: string;
+    images?: string[];
+  }) => {
+    const res = await fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 413) {
+        throw new Error(
+          'Attached images are too large. Please upload fewer or smaller images.'
+        );
+      }
+      throw new Error(data.error || 'Failed to submit custom request');
+    }
+    if (adminToken) {
+      fetchCustomRequests();
+      fetchNotifications();
+    }
+    return data as CustomRequestItem;
+  };
+
+  const updateCustomRequest = async (
+    id: string,
+    updatedFields: Partial<CustomRequestItem>
+  ) => {
+    const updated = await authFetch(`/api/requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedFields),
+    });
+    setCustomRequests((prev) =>
+      prev.map((req) => (req.id === id ? updated : req))
+    );
+    return updated;
+  };
+
+  const deleteCustomRequest = async (id: string) => {
+    await authFetch(`/api/requests/${id}`, { method: 'DELETE' });
+    setCustomRequests((prev) => prev.filter((req) => req.id !== id));
+  };
+
+  // Notifications System
+  const createNotification = async (payload: Partial<NotificationItem>) => {
+    const created = await authFetch('/api/notifications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    setNotifications((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const markNotificationRead = async (id: string, read = true) => {
+    const updated = await authFetch(`/api/notifications/${id}/read`, {
+      method: 'PUT',
+      body: JSON.stringify({ read }),
+    });
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? updated : n))
+    );
+  };
+
+  const markAllNotificationsRead = async () => {
+    const list = await authFetch('/api/notifications/read-all', {
+      method: 'PUT',
+    });
+    if (Array.isArray(list)) {
+      setNotifications(list);
+    } else {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    await authFetch(`/api/notifications/${id}`, { method: 'DELETE' });
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const clearAllNotifications = async () => {
+    await authFetch('/api/notifications', { method: 'DELETE' });
+    setNotifications([]);
+  };
+
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
+
   // Settings & Theme
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
     const updated = await authFetch('/api/settings', {
@@ -414,6 +571,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAdminToken(null);
     setAdminUser(null);
     setUsers([]);
+    setCustomRequests([]);
+    setNotifications([]);
   };
 
   const updateAdminCredentials = async (payload: {
@@ -451,6 +610,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         products,
         categories,
         users,
+        customRequests,
+        notifications,
+        unreadNotificationsCount,
         settings,
         analytics,
         dbConnected,
@@ -470,6 +632,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addUser,
         updateUser,
         deleteUser,
+        submitCustomRequest,
+        fetchCustomRequests,
+        updateCustomRequest,
+        deleteCustomRequest,
+        fetchNotifications,
+        createNotification,
+        markNotificationRead,
+        markAllNotificationsRead,
+        deleteNotification,
+        clearAllNotifications,
         updateSettings,
         loginAdmin,
         logoutAdmin,

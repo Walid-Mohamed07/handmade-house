@@ -101,6 +101,80 @@
   animation: shimmerLine 1.8s ease-in-out infinite;
 }
 
+/* Premium Glossy Button Effect on Hover */
+.btn-glossy {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.35s ease;
+  box-shadow:
+    0 4px 14px -3px color-mix(in srgb, var(--brand-primary) 35%, transparent),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.32);
+}
+
+.btn-glossy::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.24) 0%,
+    rgba(255, 255, 255, 0.05) 48%,
+    rgba(0, 0, 0, 0.08) 52%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.35s ease;
+}
+
+.btn-glossy::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -130%;
+  width: 75%;
+  height: 200%;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.12) 35%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0.12) 65%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-22deg);
+  pointer-events: none;
+  z-index: 2;
+  transition: left 0.68s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-glossy:hover {
+  transform: translateY(-2px) scale(1.015);
+  filter: brightness(1.06);
+  box-shadow:
+    0 10px 26px -4px color-mix(in srgb, var(--brand-primary) 50%, transparent),
+    0 0 18px 0 rgba(255, 255, 255, 0.35),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.btn-glossy:hover::before {
+  opacity: 1;
+}
+
+.btn-glossy:hover::after {
+  left: 145%;
+}
+
+.btn-glossy:active {
+  transform: translateY(0px) scale(0.99);
+}
+
 /* Custom Media Queries for Fine-Grained Device Responsiveness */
 @media screen and (max-width: 380px) {
   .responsive-hub-card {
