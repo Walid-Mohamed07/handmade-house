@@ -961,7 +961,7 @@ export default function CatalogPage() {
           role="dialog"
           aria-modal="true"
           aria-label="Full-size product image"
-          className="fixed max-h-[100vh] inset-0 z-[60] p-16 flex items-center justify-center bg-black/90 p-3 sm:p-6"
+          className="sticky max-h-[100vh] inset-0 z-[60] p-16 flex items-center justify-center bg-black/90 p-3 sm:p-6"
           onClick={() => setFullSizeImage(null)}
         >
           <button
